@@ -11,13 +11,14 @@ use song::{Envelope, Filter, Instrument, Song, Waveform};
 /// calling the `next` method on it will generate the next sample.
 ///
 /// Currently only generates 2-channel f32 samples at the given `sample_rate`.
-///
-/// NOTE: Only supports 44100 Hz for now.
 #[cfg_attr(feature = "std", derive(Debug))]
 pub struct Synth<'a> {
     song: &'a Song,
     random: XorShiftRng,
     sample_rate: f32,
+    sample_ratio: f32,
+    quarter_note_length: u32,
+    eighth_note_length: u32,
 
     // TODO: Support seamless loops
 
@@ -31,6 +32,8 @@ pub struct Synth<'a> {
 /// Iterator state for a single instrument track.
 #[cfg_attr(feature = "std", derive(Debug))]
 struct TrackState {
+    env: Envelope,
+
     // Max simultaneous notes per track
     notes: [Note; MAX_OVERLAPPING_NOTES],
 
@@ -121,6 +124,12 @@ impl TrackState {
         let notes = notes.into_inner().unwrap();
 
         TrackState {
+            env: Envelope {
+                attack: 0,
+                sustain: 0,
+                release: 0,
+                master: 0.0,
+            },
             notes,
             delay_samples: 0,
             delay_count: 0,
@@ -169,15 +178,26 @@ impl<'a> Synth<'a> {
             };
             XorShiftRng::from_seed(seed)
         };
+        let sample_ratio = sample_rate / 44100.0;
+        let quarter_note_length = (sample_ratio * song.quarter_note_length as f32) as u32;
+        let eighth_note_length = quarter_note_length / 2;
 
         let mut synth = Synth {
             song,
             random,
             sample_rate,
+            sample_ratio,
+            quarter_note_length,
+            eighth_note_length,
             seq_count: 0,
             sample_count: 0,
             note_count: 0,
-            tracks: Self::load_tracks(&song),
+            tracks: Self::load_tracks(
+                &song,
+                sample_ratio,
+                quarter_note_length as f32 * sample_ratio,
+                eighth_note_length,
+            ),
         };
         synth.load_notes();
 
@@ -185,17 +205,26 @@ impl<'a> Synth<'a> {
     }
 
     /// Load the static state for each track.
-    fn load_tracks(song: &Song) -> [TrackState; NUM_INSTRUMENTS] {
+    fn load_tracks(
+        song: &Song,
+        sample_ratio: f32,
+        quarter_note_length: f32,
+        eighth_note_length: u32,
+    ) -> [TrackState; NUM_INSTRUMENTS] {
         let mut tracks = ArrayVec::<[_; NUM_INSTRUMENTS]>::new();
         for _ in 0..NUM_INSTRUMENTS {
             tracks.push(TrackState::new());
         }
         let mut tracks = tracks.into_inner().unwrap();
 
-        let samples = song.quarter_note_length as f32;
         for (i, inst) in song.instruments.iter().enumerate() {
+            // Configure attack, sustain, and release
+            tracks[i].env.attack = (inst.env.attack as f32 * sample_ratio) as u32;
+            tracks[i].env.sustain = (inst.env.sustain as f32 * sample_ratio) as u32;
+            tracks[i].env.release = (inst.env.release as f32 * sample_ratio) as u32;
+
             // Configure delay
-            tracks[i].delay_samples = inst.fx.delay_time as u32 * song.eighth_note_length;
+            tracks[i].delay_samples = inst.fx.delay_time as u32 * eighth_note_length;
             tracks[i].delay_count = if inst.fx.delay_amount == 0.0 {
                 // Special case for zero repeats
                 0
@@ -212,8 +241,8 @@ impl<'a> Synth<'a> {
             };
 
             // Set LFO and panning frequencies
-            tracks[i].lfo_freq = get_frequency(1.0, 2.0, inst.lfo.freq, 8) / samples;
-            tracks[i].pan_freq = get_frequency(1.0, 2.0, inst.fx.pan_freq, 8) / samples;
+            tracks[i].lfo_freq = get_frequency(1.0, 2.0, inst.lfo.freq, 8) / quarter_note_length;
+            tracks[i].pan_freq = get_frequency(1.0, 2.0, inst.fx.pan_freq, 8) / quarter_note_length;
         }
 
         tracks
@@ -245,18 +274,17 @@ impl<'a> Synth<'a> {
 
                 // Seek to the delayed note, and ensure it's aligned to the quarter note
                 let position = self.sample_count - delay;
-                if position % self.song.quarter_note_length != 0 {
+                if position % self.quarter_note_length != 0 {
                     continue;
                 }
 
                 // Convert position into seq_count and note_count
-                let pattern_length = self.song.quarter_note_length * PATTERN_LENGTH as u32;
+                let pattern_length = self.quarter_note_length * PATTERN_LENGTH as u32;
                 let seq_count = (position / pattern_length) as usize;
                 if seq_count > self.song.seq_length {
                     continue;
                 }
-                let note_count =
-                    ((position % pattern_length) / self.song.quarter_note_length) as usize;
+                let note_count = ((position % pattern_length) / self.quarter_note_length) as usize;
 
                 // Add the note
                 let volume = inst.fx.delay_amount.powi(round as i32);
@@ -312,7 +340,8 @@ impl<'a> Synth<'a> {
         let pitch = w(self.tracks[i].notes[j].pitch);
         for o in 0..2 {
             let pitch = (pitch + w(inst.osc[o].octave) + w(inst.osc[o].detune_freq)).0;
-            self.tracks[i].notes[j].osc_freq[o] = get_note_frequency(pitch) * inst.osc[o].detune;
+            self.tracks[i].notes[j].osc_freq[o] =
+                get_note_frequency(pitch) * inst.osc[o].detune / self.sample_ratio;
         }
     }
 
@@ -367,7 +396,7 @@ impl<'a> Synth<'a> {
 
     /// Filters
     fn filters(&mut self, inst: &Instrument, i: usize, j: usize, lfo: f32, sample: f32) -> f32 {
-        let mut f = inst.fx.freq;
+        let mut f = inst.fx.freq * self.sample_ratio;
 
         if inst.lfo.fx_freq {
             f *= lfo;
@@ -402,14 +431,18 @@ impl<'a> Synth<'a> {
     ) -> Option<[f32; NUM_CHANNELS]> {
         // Envelope
         let note_sample_count = self.tracks[i].notes[j].sample_count;
-        let (env, env_sq) = match Self::env(self.sample_count - note_sample_count, &inst.env) {
-            Some((env, env_sq)) => (env, env_sq),
-            None => return None,
-        };
+        let (env, env_sq) =
+            match Self::env(self.sample_count - note_sample_count, &self.tracks[i].env) {
+                Some((env, env_sq)) => (env, env_sq),
+                None => return None,
+            };
 
         // LFO
         let lfo_freq = self.tracks[i].lfo_freq;
-        let lfo = get_osc_output(&inst.lfo.waveform, lfo_freq * position) * inst.lfo.amount + 0.5;
+        let lfo = get_osc_output(&inst.lfo.waveform, lfo_freq * position)
+            * inst.lfo.amount
+            * self.sample_ratio
+            + 0.5;
 
         // Oscillator 0
         let mut sample = self.osc0(inst, i, j, lfo, env_sq);
@@ -427,7 +460,7 @@ impl<'a> Synth<'a> {
         sample += self.filters(inst, i, j, lfo, sample);
 
         let pan_freq = self.tracks[i].pan_freq;
-        let pan_t = osc_sin(pan_freq * position) * inst.fx.pan_amount + 0.5;
+        let pan_t = osc_sin(pan_freq * position) * inst.fx.pan_amount * self.sample_ratio + 0.5;
 
         if self.tracks[i].notes[j].swap_stereo {
             Some([sample * (1.0 - pan_t), sample * pan_t])
@@ -491,7 +524,7 @@ impl<'a> Iterator for Synth<'a> {
 
         // Advance to next sample
         self.sample_count += 1;
-        let sample_in_quarter_note = self.sample_count % self.song.quarter_note_length;
+        let sample_in_quarter_note = self.sample_count % self.quarter_note_length;
         if sample_in_quarter_note == 0 {
             // Advance to next note
             self.note_count += 1;
@@ -505,7 +538,7 @@ impl<'a> Iterator for Synth<'a> {
             // Fetch the next set of notes
             self.load_delayed_notes();
             self.load_notes();
-        } else if sample_in_quarter_note == self.song.eighth_note_length {
+        } else if sample_in_quarter_note == self.eighth_note_length {
             // Fetch the next set of notes
             self.load_delayed_notes();
         }

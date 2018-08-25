@@ -29,7 +29,6 @@ pub struct Song {
     pub(crate) instruments: [Instrument; NUM_INSTRUMENTS],
     pub(crate) seq_length: usize, // Total number of patterns to play
     pub(crate) quarter_note_length: u32, // In samples
-    pub(crate) eighth_note_length: u32, // In samples
 }
 
 /// Contains two `Oscillator`s, a simple `Envelope`, `Effects` and `LFO`. The
@@ -295,7 +294,6 @@ impl Song {
         // This properly handles odd quarter note lengths
         let quarter_note_length = LittleEndian::read_u32(&slice[..HEADER_LENGTH]);
         let quarter_note_length = quarter_note_length - (quarter_note_length % 2);
-        let eighth_note_length = quarter_note_length / 2;
 
         let seq_length = slice[HEADER_LENGTH + INSTRUMENT_LENGTH * 8] as usize;
         let mut instruments = ArrayVec::new();
@@ -308,7 +306,6 @@ impl Song {
             instruments,
             seq_length,
             quarter_note_length,
-            eighth_note_length,
         })
     }
 }
