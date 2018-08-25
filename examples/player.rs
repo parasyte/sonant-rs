@@ -41,7 +41,7 @@ impl From<io::Error> for Error {
 }
 
 fn main() {
-    handle_errors(player);
+    handle_errors(player());
 }
 
 fn player() -> Result<(), Error> {
@@ -112,12 +112,11 @@ fn player() -> Result<(), Error> {
     });
 }
 
-pub fn handle_errors<F, R>(run: R)
+pub fn handle_errors<F>(result: Result<(), F>)
 where
     F: Fail,
-    R: Fn() -> Result<(), F>,
 {
-    match run() {
+    match result {
         Err(e) => {
             let stderr = io::stderr();
             let mut stderr = stderr.lock();
