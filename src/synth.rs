@@ -337,8 +337,9 @@ impl<'a> Synth<'a> {
     }
 
     /// Oscillator 0
-    fn osc0(&self, inst: &Instrument, note: &Note, lfo: f32, env_sq: f32) -> (f32, f32) {
-        let mut t = note.osc_freq[0];
+    fn osc0(&mut self, inst: &Instrument, i: usize, j: usize, lfo: f32, env_sq: f32) -> f32 {
+        let r = get_osc_output(&inst.osc[0].waveform, self.tracks[i].notes[j].osc_time[0]);
+        let mut t = self.tracks[i].notes[j].osc_freq[0];
 
         if inst.lfo.osc0_freq {
             t += lfo;
@@ -346,25 +347,26 @@ impl<'a> Synth<'a> {
         if inst.osc[0].envelope {
             t *= env_sq;
         }
-        let r = get_osc_output(&inst.osc[0].waveform, note.osc_time[0]);
+        self.tracks[i].notes[j].osc_time[0] += t;
 
-        (t, r * inst.osc[0].volume)
+        r * inst.osc[0].volume
     }
 
     /// Oscillator 1
-    fn osc1(&self, inst: &Instrument, note: &Note, env_sq: f32) -> (f32, f32) {
-        let mut t = note.osc_freq[1];
+    fn osc1(&mut self, inst: &Instrument, i: usize, j: usize, env_sq: f32) -> f32 {
+        let r = get_osc_output(&inst.osc[1].waveform, self.tracks[i].notes[j].osc_time[1]);
+        let mut t = self.tracks[i].notes[j].osc_freq[1];
 
         if inst.osc[1].envelope {
             t *= env_sq;
         }
-        let r = get_osc_output(&inst.osc[1].waveform, note.osc_time[1]);
+        self.tracks[i].notes[j].osc_time[1] += t;
 
-        (t, r * inst.osc[1].volume)
+        r * inst.osc[1].volume
     }
 
     /// Filters
-    fn filters(&self, inst: &Instrument, note: &Note, lfo: f32, sample: f32) -> (f32, f32, f32) {
+    fn filters(&mut self, inst: &Instrument, i: usize, j: usize, lfo: f32, sample: f32) -> f32 {
         let mut f = inst.fx.freq;
 
         if inst.lfo.fx_freq {
@@ -372,9 +374,12 @@ impl<'a> Synth<'a> {
         }
         f = (f * PI / self.sample_rate).sin() * 1.5;
 
-        let low = note.low + f * note.band;
-        let high = inst.fx.resonance * (sample - note.band) - low;
-        let band = note.band + f * high;
+        let low = self.tracks[i].notes[j].low + f * self.tracks[i].notes[j].band;
+        let high = inst.fx.resonance * (sample - self.tracks[i].notes[j].band) - low;
+        let band = self.tracks[i].notes[j].band + f * high;
+
+        self.tracks[i].notes[j].low = low;
+        self.tracks[i].notes[j].band = band;
 
         let sample = match inst.fx.filter {
             Filter::None => sample,
@@ -384,7 +389,7 @@ impl<'a> Synth<'a> {
             Filter::Notch => low + high,
         } * inst.env.master;
 
-        (low, band, sample)
+        sample
     }
 
     /// Generate samples for 2 channels using the given instrument.
@@ -407,13 +412,10 @@ impl<'a> Synth<'a> {
         let lfo = get_osc_output(&inst.lfo.waveform, lfo_freq * position) * inst.lfo.amount + 0.5;
 
         // Oscillator 0
-        let (osc, mut sample) = self.osc0(inst, &self.tracks[i].notes[j], lfo, env_sq);
-        self.tracks[i].notes[j].osc_time[0] += osc;
+        let mut sample = self.osc0(inst, i, j, lfo, env_sq);
 
         // Oscillator 1
-        let (osc, t) = self.osc1(inst, &self.tracks[i].notes[j], env_sq);
-        self.tracks[i].notes[j].osc_time[1] += osc;
-        sample += t;
+        sample += self.osc1(inst, i, j, env_sq);
 
         // Noise oscillator
         sample += osc_sin(self.random.gen()) * inst.noise_fader * env;
@@ -422,10 +424,7 @@ impl<'a> Synth<'a> {
         sample *= env * self.tracks[i].notes[j].volume;
 
         // Filters
-        let (low, band, t) = self.filters(inst, &self.tracks[i].notes[j], lfo, sample);
-        self.tracks[i].notes[j].low = low;
-        self.tracks[i].notes[j].band = band;
-        sample += t;
+        sample += self.filters(inst, i, j, lfo, sample);
 
         let pan_freq = self.tracks[i].pan_freq;
         let pan_t = osc_sin(pan_freq * position) * inst.fx.pan_amount + 0.5;
