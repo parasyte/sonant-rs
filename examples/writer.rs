@@ -2,8 +2,8 @@ extern crate arrayvec;
 extern crate colored;
 extern crate failure;
 extern crate failure_derive;
-extern crate sonant;
 extern crate riff_wave;
+extern crate sonant;
 
 use arrayvec::ArrayVec;
 use colored::Colorize;
