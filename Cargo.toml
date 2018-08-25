@@ -13,6 +13,7 @@ rand = "0.5"
 [dev-dependencies]
 colored = "1.6"
 cpal = "0.8"
+riff-wave = "0.1"
 
 [features]
 default = ["std"]
