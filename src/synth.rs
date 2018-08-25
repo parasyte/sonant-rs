@@ -53,8 +53,8 @@ struct Note {
     swap_stereo: bool,
 
     // Iterator state
-    osc_freq: [f32; NUM_CHANNELS],
-    osc_time: [f32; NUM_CHANNELS],
+    osc_freq: [f32; 2],
+    osc_time: [f32; 2],
     low: f32,
     band: f32,
 }
@@ -137,8 +137,8 @@ impl Note {
             sample_count,
             volume,
             swap_stereo,
-            osc_freq: [0.0; NUM_CHANNELS],
-            osc_time: [0.0; NUM_CHANNELS],
+            osc_freq: [0.0; 2],
+            osc_time: [0.0; 2],
             low: 0.0,
             band: 0.0,
         }
