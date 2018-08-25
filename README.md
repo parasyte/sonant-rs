@@ -43,3 +43,5 @@ The original synthesizer doesn't have many limitations beyond what the `.snt` fo
 Songs which use a lot of delay effects on the instruments will more quickly hit the overlapping note limits. If you need to support more overlapping notes, you can simply increase the value in `consts.rs`; any value up to 32 will work without any other changes.
 
 Due to the way the delayed notes work, the length of quarter notes cannot be an odd number of samples. This would cause the length of eighth notes to be a fractional number, and would complicate the process of "finding notes in the past". To resolve the conflict, the length of quarter notes is adjusted to an even number by "rounding down" to the nearest even number. This has a small impact on playback duration; a four-minute song will be about 1 second shorter than it would as rendered by other players.
+
+Sonant generates samples in reverse order. We have to generate samples chronologically. This shifts the phase of the waveform for individual notes arbitrarily (it depends on note length, envelope, and the nondeterministic LFO). The differences are too subtle for humans to distinguish, but it is worth mentioning.

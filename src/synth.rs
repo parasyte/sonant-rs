@@ -61,7 +61,7 @@ struct Note {
 
 /// Sine wave generator
 fn osc_sin(value: f32) -> f32 {
-    (value * PI * 2.0).sin()
+    ((value + 0.5) * PI * 2.0).sin()
 }
 
 /// Square wave generator
@@ -75,7 +75,7 @@ fn osc_square(value: f32) -> f32 {
 
 /// Saw wave generator
 fn osc_saw(value: f32) -> f32 {
-    value.fract() - 0.5
+    (1.0 - value.fract()) - 0.5
 }
 
 /// Triangle wave generator
@@ -431,9 +431,9 @@ impl<'a> Synth<'a> {
         let pan_t = osc_sin(pan_freq * position) * inst.fx.pan_amount + 0.5;
 
         if self.tracks[i].notes[j].swap_stereo {
-            Some([sample * pan_t, sample * (1.0 - pan_t)])
-        } else {
             Some([sample * (1.0 - pan_t), sample * pan_t])
+        } else {
+            Some([sample * pan_t, sample * (1.0 - pan_t)])
         }
     }
 
