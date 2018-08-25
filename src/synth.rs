@@ -195,12 +195,7 @@ impl<'a> Synth<'a> {
         let samples = song.quarter_note_length as f32;
         for (i, inst) in song.instruments.iter().enumerate() {
             // Configure delay
-            // This correctly handles odd quarter note lengths
-            tracks[i].delay_samples = inst.fx.delay_time as u32 / 2 * song.quarter_note_length;
-            if inst.fx.delay_time % 2 == 1 {
-                tracks[i].delay_samples -= song.eighth_note_length;
-            }
-
+            tracks[i].delay_samples = inst.fx.delay_time as u32 * song.eighth_note_length;
             tracks[i].delay_count = if inst.fx.delay_amount == 0.0 {
                 // Special case for zero repeats
                 0
@@ -213,7 +208,7 @@ impl<'a> Synth<'a> {
             } else {
                 // This gets the number of iterations required for the note
                 // volume to drop below the audible threashold.
-                (256.0_f32).log(1.0 / inst.fx.delay_amount) as u32 - 1
+                (256.0_f32).log(1.0 / inst.fx.delay_amount) as u32
             };
 
             // Set LFO and panning frequencies
