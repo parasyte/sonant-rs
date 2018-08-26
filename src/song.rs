@@ -1,30 +1,32 @@
 use arrayvec::ArrayVec;
 use byteorder::{ByteOrder, LittleEndian};
-use core::f32;
-use core::num::Wrapping as w;
-use failure::Fail;
+use std::f32;
+use std::num::Wrapping as w;
 
 #[cfg(feature = "std")]
+use failure::Fail;
+
 use std::fmt;
 
 use consts::*;
 
 /// Possible errors.
-#[cfg_attr(feature = "std", derive(Debug, Fail))]
+#[derive(Debug)]
+#[cfg_attr(feature = "std", derive(Fail))]
 pub enum Error {
-    #[fail(display = "Incorrect file length")]
+    #[cfg_attr(feature = "std", fail(display = "Incorrect file length"))]
     FileLength,
 
-    #[fail(display = "Invalid waveform")]
+    #[cfg_attr(feature = "std", fail(display = "Invalid waveform"))]
     InvalidWaveform,
 
-    #[fail(display = "Invalid filter")]
+    #[cfg_attr(feature = "std", fail(display = "Invalid filter"))]
     InvalidFilter,
 }
 
 /// A `Song` contains a list of up to 8 `Instruments` and defines the sample
 /// length for each row (in the tracker).
-#[cfg_attr(feature = "std", derive(Debug))]
+#[derive(Debug)]
 pub struct Song {
     pub(crate) instruments: [Instrument; NUM_INSTRUMENTS],
     pub(crate) seq_length: usize, // Total number of patterns to play
@@ -45,7 +47,7 @@ pub(crate) struct Instrument {
 }
 
 /// The `Oscillator` defines the `Instrument` sound.
-#[cfg_attr(feature = "std", derive(Debug))]
+#[derive(Debug)]
 pub(crate) struct Oscillator {
     pub(crate) octave: u8,         // Octave knob
     pub(crate) detune_freq: u8,    // Detune frequency
@@ -57,7 +59,7 @@ pub(crate) struct Oscillator {
 
 /// `Envelope` is for compressing the sample amplitude over time.
 /// (E.g. raising and lowering volume.)
-#[cfg_attr(feature = "std", derive(Debug))]
+#[derive(Debug)]
 pub(crate) struct Envelope {
     pub(crate) attack: u32,  // Attack
     pub(crate) sustain: u32, // Sustain
@@ -66,7 +68,7 @@ pub(crate) struct Envelope {
 }
 
 /// The `Effects` provide filtering, resonance, and panning.
-#[cfg_attr(feature = "std", derive(Debug))]
+#[derive(Debug)]
 pub(crate) struct Effects {
     pub(crate) filter: Filter,    // Hi, lo, bandpass, or notch toggle
     pub(crate) freq: f32,         // FX Frequency
@@ -79,7 +81,7 @@ pub(crate) struct Effects {
 
 /// `LFO` is a Low-Frequency Oscillator. It can be used to adjust the frequency
 /// of `Oscillator` 0 and `Effects` over time.
-#[cfg_attr(feature = "std", derive(Debug))]
+#[derive(Debug)]
 pub(crate) struct LFO {
     pub(crate) osc0_freq: bool,    // Modify Oscillator 0 frequency (FM) toggle
     pub(crate) fx_freq: bool,      // Modify FX frequency toggle
@@ -109,14 +111,21 @@ impl fmt::Debug for Instrument {
     }
 }
 
+#[cfg(not(feature = "std"))]
+impl fmt::Debug for Instrument {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        Ok(())
+    }
+}
+
 /// Contains the tracker notes (up to 32).
-#[cfg_attr(feature = "std", derive(Debug))]
+#[derive(Debug)]
 pub(crate) struct Pattern {
     pub(crate) notes: [u8; PATTERN_LENGTH],
 }
 
 /// Available filters.
-#[cfg_attr(feature = "std", derive(Debug))]
+#[derive(Debug)]
 pub(crate) enum Filter {
     None,
     HighPass,
@@ -126,7 +135,7 @@ pub(crate) enum Filter {
 }
 
 /// Available wave forms.
-#[cfg_attr(feature = "std", derive(Debug))]
+#[derive(Debug)]
 pub(crate) enum Waveform {
     Sine,
     Square,

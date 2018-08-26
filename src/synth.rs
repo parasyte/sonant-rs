@@ -1,8 +1,10 @@
 use arrayvec::ArrayVec;
-use core::f32::consts::PI;
-use core::num::Wrapping as w;
+#[allow(unused_imports)]
+use libm::F32Ext;
 use rand::prng::XorShiftRng;
 use rand::{Rng, SeedableRng};
+use std::f32::consts::PI;
+use std::num::Wrapping as w;
 
 use consts::*;
 use song::{Envelope, Filter, Instrument, Song, Waveform};
@@ -11,7 +13,7 @@ use song::{Envelope, Filter, Instrument, Song, Waveform};
 /// calling the `next` method on it will generate the next sample.
 ///
 /// Currently only generates 2-channel f32 samples at the given `sample_rate`.
-#[cfg_attr(feature = "std", derive(Debug))]
+#[derive(Debug)]
 pub struct Synth<'a> {
     song: &'a Song,
     random: XorShiftRng,
@@ -30,7 +32,7 @@ pub struct Synth<'a> {
 }
 
 /// Iterator state for a single instrument track.
-#[cfg_attr(feature = "std", derive(Debug))]
+#[derive(Debug)]
 struct TrackState {
     env: Envelope,
 
@@ -48,7 +50,7 @@ struct TrackState {
 /// Data structure for quarter notes, which includes the pitch and sample
 /// counter reference for waveform modulation. It also contains state for sample
 /// synthesis and filtering.
-#[cfg_attr(feature = "std", derive(Debug))]
+#[derive(Debug)]
 struct Note {
     pitch: u8,
     sample_count: u32,
@@ -96,7 +98,7 @@ fn osc_tri(value: f32) -> f32 {
 /// frequency `ref_freq` and reference pitch `ref_pitch`, using the interval
 /// `semitone`.
 fn get_frequency(ref_freq: f32, semitone: f32, note: u8, ref_pitch: u8) -> f32 {
-    ref_freq * semitone.powi(note as i32 - ref_pitch as i32)
+    ref_freq * semitone.powf(note as f32 - ref_pitch as f32)
 }
 
 /// Get the absolute frequency for a note value on the 12-TET scale.
@@ -287,7 +289,7 @@ impl<'a> Synth<'a> {
                 let note_count = ((position % pattern_length) / self.quarter_note_length) as usize;
 
                 // Add the note
-                let volume = inst.fx.delay_amount.powi(round as i32);
+                let volume = inst.fx.delay_amount.powf(round as f32);
                 self.add_note(i, seq_count, note_count, volume, round % 2 == 1);
             }
         }

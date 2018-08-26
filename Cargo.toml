@@ -2,13 +2,17 @@
 name = "sonant"
 version = "0.1.0"
 authors = ["Jay Oster <jay@kodewerx.org>"]
+license = "MIT"
+categories = ["embedded", "game-engines", "multimedia", "no-std"]
+keywords = ["audio", "no_std", "sound", "synth", "synthesizer"]
 
 [dependencies]
 arrayvec = { version = "0.4", default-features = false }
-byteorder = "1.2"
-failure = "0.1"
+byteorder = { version = "1.2", default-features = false }
+failure = { version = "0.1", optional = true }
 failure_derive = { version = "0.1", optional = true }
-rand = "0.5"
+libm = "0.1"
+rand = { version = "0.5", default-features = false }
 
 [dev-dependencies]
 colored = "1.6"
@@ -17,4 +21,4 @@ riff-wave = "0.1"
 
 [features]
 default = ["std"]
-std = ["failure_derive"]
+std = ["failure", "failure_derive"]
