@@ -10,7 +10,7 @@ use colored::Colorize;
 use cpal::{EventLoop, StreamData, UnknownTypeOutputBuffer};
 use failure::Fail;
 use std::fs::File;
-use std::io::{self, Read, Write};
+use std::io::{self, Read};
 use std::process;
 
 use sonant::Error as SonantError;
@@ -118,17 +118,14 @@ where
 {
     match result {
         Err(e) => {
-            let stderr = io::stderr();
-            let mut stderr = stderr.lock();
-
-            writeln!(stderr, "{} {}", "error:".red(), e);
+            eprintln!("{} {}", "error:".red(), e);
 
             for cause in Fail::iter_causes(&e) {
-                writeln!(stderr, "{} {}", "caused by:".bright_red(), cause).ok();
+                eprintln!("{} {}", "caused by:".bright_red(), cause);
             }
 
             if let Some(backtrace) = e.backtrace() {
-                writeln!(stderr, "{:?}", backtrace).ok();
+                eprintln!("{:?}", backtrace);
             }
 
             process::exit(1);
