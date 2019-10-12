@@ -500,11 +500,12 @@ impl<'a> Iterator for Synth<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         // Check for end of song
-        if self.seq_count > self.song.seq_length && !self
-            .tracks
-            .iter()
-            .flat_map(|x| x.notes.iter())
-            .any(|x| x.pitch != 0)
+        if self.seq_count > self.song.seq_length
+            && !self
+                .tracks
+                .iter()
+                .flat_map(|x| x.notes.iter())
+                .any(|x| x.pitch != 0)
         {
             return None;
         }
