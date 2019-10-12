@@ -5,6 +5,7 @@ authors = ["Jay Oster <jay@kodewerx.org>"]
 license = "MIT"
 categories = ["embedded", "game-engines", "multimedia", "no-std"]
 keywords = ["audio", "no_std", "sound", "synth", "synthesizer"]
+edition = "2018"
 
 [dependencies]
 arrayvec = { version = "0.5", default-features = false }

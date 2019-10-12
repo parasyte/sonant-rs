@@ -1,12 +1,3 @@
-extern crate arrayvec;
-extern crate byteorder;
-extern crate colored;
-extern crate failure;
-extern crate failure_derive;
-extern crate getrandom;
-extern crate riff_wave;
-extern crate sonant;
-
 use arrayvec::ArrayVec;
 use byteorder::{ByteOrder, LittleEndian};
 use colored::Colorize;

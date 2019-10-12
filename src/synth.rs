@@ -5,8 +5,8 @@ use randomize::PCG32;
 use std::f32::consts::PI;
 use std::num::Wrapping as w;
 
-use consts::*;
-use song::{Envelope, Filter, Instrument, Song, Waveform};
+use crate::consts::*;
+use crate::song::{Envelope, Filter, Instrument, Song, Waveform};
 
 /// The main struct for audio synthesis. `Synth` implements `Iterator`, so
 /// calling the `next` method on it will generate the next sample.

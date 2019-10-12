@@ -8,7 +8,7 @@ use failure::Fail;
 
 use std::fmt;
 
-use consts::*;
+use crate::consts::*;
 
 /// Possible errors.
 #[derive(Debug)]
