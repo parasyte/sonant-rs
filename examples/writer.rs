@@ -1,16 +1,19 @@
 extern crate arrayvec;
+extern crate byteorder;
 extern crate colored;
 extern crate failure;
 extern crate failure_derive;
+extern crate getrandom;
 extern crate riff_wave;
 extern crate sonant;
 
 use arrayvec::ArrayVec;
+use byteorder::{ByteOrder, LittleEndian};
 use colored::Colorize;
 use failure::Fail;
 use riff_wave::{WaveWriter, WriteError};
 use std::fs::File;
-use std::io::{self, BufWriter, Read, Write};
+use std::io::{self, BufWriter, Read};
 use std::process;
 
 use sonant::Error as SonantError;
@@ -66,9 +69,17 @@ fn writer() -> Result<(), Error> {
     let mut data = Vec::new();
     file.read_to_end(&mut data)?;
 
+    // Create a seed for the PRNG
+    let mut seed = [0_u8; 16];
+    getrandom::getrandom(&mut seed).expect("failed to getrandom");
+    let seed = (
+        LittleEndian::read_u64(&seed[0..8]),
+        LittleEndian::read_u64(&seed[8..16]),
+    );
+
     // Load a sonant song and create a synth
     let song = Song::from_slice(&data)?;
-    let synth = Synth::new(&song, None, 44100.0 as f32)
+    let synth = Synth::new(&song, seed, 44100.0 as f32)
         .map(ArrayVec::from)
         .flatten()
         .peekable();

@@ -1,8 +1,7 @@
 use arrayvec::ArrayVec;
 #[allow(unused_imports)]
 use libm::F32Ext;
-use rand::prng::XorShiftRng;
-use rand::{Rng, SeedableRng};
+use randomize::PCG32;
 use std::f32::consts::PI;
 use std::num::Wrapping as w;
 
@@ -16,7 +15,7 @@ use song::{Envelope, Filter, Instrument, Song, Waveform};
 #[derive(Debug)]
 pub struct Synth<'a> {
     song: &'a Song,
-    random: XorShiftRng,
+    random: PCG32,
     sample_rate: f32,
     sample_ratio: f32,
     quarter_note_length: u32,
@@ -167,19 +166,8 @@ impl<'a> Synth<'a> {
     ///     // Do something with the samples
     /// }
     /// ```
-    pub fn new(song: &'a Song, seed: Option<[u8; 16]>, sample_rate: f32) -> Self {
-        let random = {
-            let seed = match seed {
-                Some(seed) => seed,
-                #[cfg_attr(rustfmt, rustfmt_skip)]
-                None => [
-                    // Seeded the same as XorShiftRng::new_unseeded()
-                    0x54, 0x67, 0x3a, 0x19, 0x69, 0xd4, 0xa7, 0xa8,
-                    0x05, 0x0e, 0x83, 0x97, 0xbb, 0xa7, 0x3b, 0x11,
-                ],
-            };
-            XorShiftRng::from_seed(seed)
-        };
+    pub fn new(song: &'a Song, seed: (u64, u64), sample_rate: f32) -> Self {
+        let random = PCG32::seed(seed.0, seed.1);
         let sample_ratio = sample_rate / 44100.0;
         let quarter_note_length = (sample_ratio * song.quarter_note_length as f32) as u32;
         let eighth_note_length = quarter_note_length / 2;
@@ -453,7 +441,7 @@ impl<'a> Synth<'a> {
         sample += self.osc1(inst, i, j, env_sq);
 
         // Noise oscillator
-        sample += osc_sin(self.random.gen()) * inst.noise_fader * env;
+        sample += osc_sin(randomize::f32_closed(self.random.next_u32())) * inst.noise_fader * env;
 
         // Envelope
         sample *= env * self.tracks[i].notes[j].volume;

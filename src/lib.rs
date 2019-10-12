@@ -3,7 +3,7 @@
 extern crate arrayvec;
 extern crate byteorder;
 extern crate libm;
-extern crate rand;
+extern crate randomize;
 
 #[cfg(not(feature = "std"))]
 extern crate core as std;
