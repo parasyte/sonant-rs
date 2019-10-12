@@ -160,13 +160,13 @@ impl Song {
                 1 => Waveform::Square,
                 2 => Waveform::Saw,
                 3 => Waveform::Triangle,
-                _ => Err(Error::InvalidWaveform)?,
+                _ => return Err(Error::InvalidWaveform),
             })
         }
 
         let load_oscillator = |i, o| -> Result<Oscillator, Error> {
             let i = i + o * OSCILLATOR_LENGTH;
-            let octave = ((w::<u8>(slice[i + 0]) - w(8)) * w(12)).0;
+            let octave = ((w::<u8>(slice[i]) - w(8)) * w(12)).0;
             let detune_freq = slice[i + 1];
             let detune = slice[i + 2] as f32 * 0.2 / 255.0 + 1.0;
             let envelope = slice[i + 3] != 0;
@@ -184,7 +184,7 @@ impl Song {
         };
 
         let load_envelope = |i| -> Envelope {
-            let attack = LittleEndian::read_u32(&slice[i + 0..i + 4]);
+            let attack = LittleEndian::read_u32(&slice[i..i + 4]);
             let sustain = LittleEndian::read_u32(&slice[i + 4..i + 8]);
             let release = LittleEndian::read_u32(&slice[i + 8..i + 12]);
             let master = slice[i + 12] as f32 * 156.0;
@@ -198,13 +198,13 @@ impl Song {
         };
 
         let load_effects = |i| -> Result<Effects, Error> {
-            let filter = match slice[i + 0] {
+            let filter = match slice[i] {
                 0 => Filter::None,
                 1 => Filter::HighPass,
                 2 => Filter::LowPass,
                 3 => Filter::BandPass,
                 4 => Filter::Notch,
-                _ => Err(Error::InvalidFilter)?,
+                _ => return Err(Error::InvalidFilter),
             };
             let i = i + 3;
             let freq = f32::from_bits(LittleEndian::read_u32(&slice[i..i + 4]));
@@ -226,7 +226,7 @@ impl Song {
         };
 
         let load_lfo = |i| -> Result<LFO, Error> {
-            let osc0_freq = slice[i + 0] != 0;
+            let osc0_freq = slice[i] != 0;
             let fx_freq = slice[i + 1] != 0;
             let freq = slice[i + 2];
             let amount = slice[i + 3] as f32 / 512.0;

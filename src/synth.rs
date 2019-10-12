@@ -3,6 +3,7 @@ use arrayvec::ArrayVec;
 use libm::F32Ext;
 use randomize::PCG32;
 use std::f32::consts::PI;
+use std::f32::EPSILON;
 use std::num::Wrapping as w;
 
 use crate::consts::*;
@@ -102,7 +103,7 @@ fn get_frequency(ref_freq: f32, semitone: f32, note: u8, ref_pitch: u8) -> f32 {
 
 /// Get the absolute frequency for a note value on the 12-TET scale.
 fn get_note_frequency(note: u8) -> f32 {
-    const SEMITONE: f32 = 1.059463094; // Twelfth root of 2
+    const SEMITONE: f32 = 1.059_463_1; // Twelfth root of 2
     get_frequency(1.0 / 256.0, SEMITONE, note, 128)
 }
 
@@ -218,7 +219,7 @@ impl<'a> Synth<'a> {
             tracks[i].delay_count = if inst.fx.delay_amount == 0.0 {
                 // Special case for zero repeats
                 0
-            } else if inst.fx.delay_amount == 1.0 {
+            } else if (inst.fx.delay_amount - 1.0).abs() < EPSILON {
                 // Special case for infinite repeats
                 u32::max_value()
             } else if tracks[i].delay_samples == 0 {
@@ -406,9 +407,9 @@ impl<'a> Synth<'a> {
             Filter::LowPass => low,
             Filter::BandPass => band,
             Filter::Notch => low + high,
-        } * inst.env.master;
+        };
 
-        sample
+        sample * inst.env.master
     }
 
     /// Generate samples for 2 channels using the given instrument.
@@ -476,8 +477,8 @@ impl<'a> Synth<'a> {
 
                 if let Some(note_samples) = self.generate_samples(inst, i, j, position) {
                     // Mix the samples
-                    for i in 0..NUM_CHANNELS {
-                        samples[i] += note_samples[i];
+                    for (i, sample) in samples.iter_mut().enumerate() {
+                        *sample += note_samples[i];
                     }
                 } else {
                     // Remove notes that have ended
@@ -487,8 +488,8 @@ impl<'a> Synth<'a> {
         }
 
         // Clip samples to [-1.0, 1.0]
-        for i in 0..NUM_CHANNELS {
-            samples[i] = (samples[i] / amplitude).min(1.0).max(-1.0);
+        for sample in samples.iter_mut() {
+            *sample = (*sample / amplitude).min(1.0).max(-1.0);
         }
 
         samples
