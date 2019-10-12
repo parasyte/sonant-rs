@@ -28,7 +28,7 @@ See the Sonant manual (bundled with the original release archive on Pouët) if y
 
 ## How to use it?
 
-See the [./examples/player.rs](player.rs example) for some code that loads and plays a `.snt` file.
+See the [`player` example](./examples/player.rs) for some code that loads and plays a `.snt` file.
 
 ```bash
 cargo run --release --example player -- ./examples/poseidon.snt
