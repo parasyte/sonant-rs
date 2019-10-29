@@ -1,38 +1,26 @@
+use std::fs::File;
+use std::io::{self, Read};
+use std::process;
+
 use arrayvec::ArrayVec;
 use byteorder::{ByteOrder, LittleEndian};
 use colored::Colorize;
 use cpal::traits::{DeviceTrait, EventLoopTrait, HostTrait};
 use cpal::{StreamData, UnknownTypeOutputBuffer};
-use failure::Fail;
-use std::fs::File;
-use std::io::{self, Read};
-use std::process;
+use thiserror::Error;
 
-use sonant::Error as SonantError;
-use sonant::{Song, Synth};
+use sonant::{errors::iter_sources, Error as SonantError, Song, Synth};
 
-#[derive(Debug, Fail)]
+#[derive(Debug, Error)]
 pub enum Error {
-    #[fail(display = "Missing filename argument")]
+    #[error("Missing filename argument")]
     MissingFilename,
 
-    #[fail(display = "Sonant error")]
-    SonantError(#[cause] SonantError),
+    #[error("Sonant error")]
+    SonantError(#[from] SonantError),
 
-    #[fail(display = "I/O error")]
-    IOError(#[cause] io::Error),
-}
-
-impl From<SonantError> for Error {
-    fn from(e: SonantError) -> Self {
-        Error::SonantError(e)
-    }
-}
-
-impl From<io::Error> for Error {
-    fn from(e: io::Error) -> Self {
-        Error::IOError(e)
-    }
+    #[error("I/O error")]
+    IOError(#[from] io::Error),
 }
 
 fn main() {
@@ -130,20 +118,16 @@ fn player() -> Result<(), Error> {
     });
 }
 
-pub fn handle_errors<F>(result: Result<(), F>)
+pub fn handle_errors<E>(result: Result<(), E>)
 where
-    F: Fail,
+    E: std::error::Error + 'static,
 {
     match result {
         Err(e) => {
             eprintln!("{} {}", "error:".red(), e);
 
-            for cause in Fail::iter_causes(&e) {
+            for cause in iter_sources(&e) {
                 eprintln!("{} {}", "caused by:".bright_red(), cause);
-            }
-
-            if let Some(backtrace) = e.backtrace() {
-                eprintln!("{:?}", backtrace);
             }
 
             process::exit(1);

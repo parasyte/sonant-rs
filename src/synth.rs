@@ -1,10 +1,11 @@
+use core::f32::consts::PI;
+use core::f32::EPSILON;
+use core::num::Wrapping as w;
+
 use arrayvec::ArrayVec;
 #[allow(unused_imports)]
 use libm::F32Ext;
 use randomize::PCG32;
-use std::f32::consts::PI;
-use std::f32::EPSILON;
-use std::num::Wrapping as w;
 
 use crate::consts::*;
 use crate::song::{Envelope, Filter, Instrument, Song, Waveform};

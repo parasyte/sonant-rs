@@ -1,49 +1,31 @@
-use arrayvec::ArrayVec;
-use byteorder::{ByteOrder, LittleEndian};
-use colored::Colorize;
-use failure::Fail;
-use riff_wave::{WaveWriter, WriteError};
 use std::fs::File;
 use std::io::{self, BufWriter, Read};
 use std::process;
 
-use sonant::Error as SonantError;
-use sonant::{Song, Synth};
+use arrayvec::ArrayVec;
+use byteorder::{ByteOrder, LittleEndian};
+use colored::Colorize;
+use riff_wave::{WaveWriter, WriteError};
+use thiserror::Error;
 
-#[derive(Debug, Fail)]
+use sonant::{errors::iter_sources, Error as SonantError, Song, Synth};
+
+#[derive(Debug, Error)]
 pub enum Error {
-    #[fail(display = "Missing snt-file argument\nUsage: player <snt-file> <wav-file>")]
+    #[error("Missing snt-file argument\nUsage: player <snt-file> <wav-file>")]
     MissingSntFilename,
 
-    #[fail(display = "Missing wav-file argument\nUsage: player <snt-file> <wav-file>")]
+    #[error("Missing wav-file argument\nUsage: player <snt-file> <wav-file>")]
     MissingWavFilename,
 
-    #[fail(display = "Sonant error")]
-    SonantError(#[cause] SonantError),
+    #[error("Sonant error")]
+    SonantError(#[from] SonantError),
 
-    #[fail(display = "I/O error")]
-    IOError(#[cause] io::Error),
+    #[error("I/O error")]
+    IOError(#[from] io::Error),
 
-    #[fail(display = "Wave writer error")]
-    WriterError(#[cause] WriteError),
-}
-
-impl From<SonantError> for Error {
-    fn from(e: SonantError) -> Self {
-        Error::SonantError(e)
-    }
-}
-
-impl From<io::Error> for Error {
-    fn from(e: io::Error) -> Self {
-        Error::IOError(e)
-    }
-}
-
-impl From<WriteError> for Error {
-    fn from(e: WriteError) -> Self {
-        Error::WriterError(e)
-    }
+    #[error("Wave writer error")]
+    WriterError(#[from] WriteError),
 }
 
 fn main() {
@@ -88,20 +70,16 @@ fn writer() -> Result<(), Error> {
     Ok(())
 }
 
-pub fn handle_errors<F>(result: Result<(), F>)
+pub fn handle_errors<E>(result: Result<(), E>)
 where
-    F: Fail,
+    E: std::error::Error + 'static,
 {
     match result {
         Err(e) => {
             eprintln!("{} {}", "error:".red(), e);
 
-            for cause in Fail::iter_causes(&e) {
+            for cause in iter_sources(&e) {
                 eprintln!("{} {}", "caused by:".bright_red(), cause);
-            }
-
-            if let Some(backtrace) = e.backtrace() {
-                eprintln!("{:?}", backtrace);
             }
 
             process::exit(1);

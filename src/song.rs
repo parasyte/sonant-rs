@@ -1,26 +1,25 @@
+use core::f32;
+use core::fmt;
+use core::num::Wrapping as w;
+
 use arrayvec::ArrayVec;
 use byteorder::{ByteOrder, LittleEndian};
-use std::f32;
-use std::num::Wrapping as w;
-
 #[cfg(feature = "std")]
-use failure::Fail;
-
-use std::fmt;
+use thiserror::Error;
 
 use crate::consts::*;
 
 /// Possible errors.
 #[derive(Debug)]
-#[cfg_attr(feature = "std", derive(Fail))]
+#[cfg_attr(feature = "std", derive(Error))]
 pub enum Error {
-    #[cfg_attr(feature = "std", fail(display = "Incorrect file length"))]
+    #[error("Incorrect file length")]
     FileLength,
 
-    #[cfg_attr(feature = "std", fail(display = "Invalid waveform"))]
+    #[error("Invalid waveform")]
     InvalidWaveform,
 
-    #[cfg_attr(feature = "std", fail(display = "Invalid filter"))]
+    #[error("Invalid filter")]
     InvalidFilter,
 }
 

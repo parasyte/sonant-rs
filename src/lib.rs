@@ -1,9 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-#[cfg(not(feature = "std"))]
-extern crate core as std;
-
 mod consts;
+#[cfg(feature = "std")]
+pub mod errors;
 mod song;
 mod synth;
 
