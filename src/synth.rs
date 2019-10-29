@@ -101,7 +101,7 @@ fn osc_tri(value: f32) -> f32 {
 /// frequency `ref_freq` and reference pitch `ref_pitch`, using the interval
 /// `semitone`.
 fn get_frequency(ref_freq: f32, semitone: f32, note: u8, ref_pitch: u8) -> f32 {
-    ref_freq * semitone.powf(note as f32 - ref_pitch as f32)
+    ref_freq * semitone.powf(f32::from(note) - f32::from(ref_pitch))
 }
 
 /// Get the absolute frequency for a note value on the 12-TET scale.
@@ -128,7 +128,7 @@ impl TrackState {
         }
         let notes = notes.into_inner().unwrap();
 
-        TrackState {
+        Self {
             env: Envelope {
                 attack: 0,
                 sustain: 0,
@@ -146,7 +146,7 @@ impl TrackState {
 
 impl Note {
     fn new(pitch: u8, sample_count: u32, volume: f32, swap_stereo: bool) -> Self {
-        Note {
+        Self {
             pitch,
             sample_count,
             volume,
@@ -185,6 +185,7 @@ impl<'a> Synth<'a> {
     /// }
     /// # Ok::<(), sonant::Error>(())
     /// ```
+    #[must_use]
     pub fn new(song: &'a Song, seed: (u64, u64), sample_rate: f32) -> Self {
         let random = PCG32::seed(seed.0, seed.1);
         let sample_ratio = sample_rate / 44100.0;
@@ -233,7 +234,7 @@ impl<'a> Synth<'a> {
             tracks[i].env.release = (inst.env.release as f32 * sample_ratio) as u32;
 
             // Configure delay
-            tracks[i].delay_samples = inst.fx.delay_time as u32 * eighth_note_length;
+            tracks[i].delay_samples = u32::from(inst.fx.delay_time) * eighth_note_length;
             tracks[i].delay_count = if inst.fx.delay_amount == 0.0 {
                 // Special case for zero repeats
                 0
@@ -305,13 +306,11 @@ impl<'a> Synth<'a> {
     /// Get the index of the first empty note in the given `notes` slice.
     fn get_note_slot(notes: &[Note]) -> usize {
         // Find the first empty note
-        match notes.iter().enumerate().find(|(_, x)| x.pitch == 0) {
-            Some((i, _)) => i,
-            // If that fails, use the oldest note
-            None => {
-                let iter = notes.iter().enumerate();
-                iter.min_by_key(|(_, x)| x.sample_count).unwrap().0
-            }
+        if let Some((i, _)) = notes.iter().enumerate().find(|(_, x)| x.pitch == 0) {
+            i
+        } else {
+            let iter = notes.iter().enumerate();
+            iter.min_by_key(|(_, x)| x.sample_count).unwrap().0
         }
     }
 
@@ -412,9 +411,9 @@ impl<'a> Synth<'a> {
         }
         f = (f * PI / self.sample_rate).sin() * 1.5;
 
-        let low = self.tracks[i].notes[j].low + f * self.tracks[i].notes[j].band;
+        let low = f.mul_add(self.tracks[i].notes[j].band, self.tracks[i].notes[j].low);
         let high = inst.fx.resonance * (sample - self.tracks[i].notes[j].band) - low;
-        let band = self.tracks[i].notes[j].band + f * high;
+        let band = f.mul_add(high, self.tracks[i].notes[j].band);
 
         self.tracks[i].notes[j].low = low;
         self.tracks[i].notes[j].band = band;
@@ -448,10 +447,8 @@ impl<'a> Synth<'a> {
 
         // LFO
         let lfo_freq = self.tracks[i].lfo_freq;
-        let lfo = get_osc_output(&inst.lfo.waveform, lfo_freq * position)
-            * inst.lfo.amount
-            * self.sample_ratio
-            + 0.5;
+        let lfo = (get_osc_output(&inst.lfo.waveform, lfo_freq * position) * inst.lfo.amount)
+            .mul_add(self.sample_ratio, 0.5);
 
         // Oscillator 0
         let mut sample = self.osc0(inst, i, j, lfo, env_sq);
@@ -469,7 +466,8 @@ impl<'a> Synth<'a> {
         sample += self.filters(inst, i, j, lfo, sample);
 
         let pan_freq = self.tracks[i].pan_freq;
-        let pan_t = osc_sin(pan_freq * position) * inst.fx.pan_amount * self.sample_ratio + 0.5;
+        let pan_t =
+            (osc_sin(pan_freq * position) * inst.fx.pan_amount).mul_add(self.sample_ratio, 0.5);
 
         if self.tracks[i].notes[j].swap_stereo {
             Some([sample * (1.0 - pan_t), sample * pan_t])
@@ -481,7 +479,7 @@ impl<'a> Synth<'a> {
     /// Update the sample generator. This is the main workhorse of the
     /// synthesizer.
     fn update(&mut self) -> [f32; NUM_CHANNELS] {
-        let amplitude = i16::max_value() as f32;
+        let amplitude = f32::from(i16::max_value());
         let position = self.sample_count as f32;
 
         // Output samples
@@ -506,7 +504,7 @@ impl<'a> Synth<'a> {
         }
 
         // Clip samples to [-1.0, 1.0]
-        for sample in samples.iter_mut() {
+        for sample in &mut samples {
             *sample = (*sample / amplitude).min(1.0).max(-1.0);
         }
 

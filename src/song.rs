@@ -152,155 +152,10 @@ impl Song {
     /// let song = Song::from_slice(include_bytes!("../examples/poseidon.snt"))?;
     /// # Ok::<(), sonant::Error>(())
     /// ```
-    pub fn from_slice(slice: &[u8]) -> Result<Song, Error> {
+    pub fn from_slice(slice: &[u8]) -> Result<Self, Error> {
         if slice.len() != SONG_LENGTH {
             return Err(Error::FileLength);
         }
-
-        fn parse_waveform(waveform: u8) -> Result<Waveform, Error> {
-            Ok(match waveform {
-                0 => Waveform::Sine,
-                1 => Waveform::Square,
-                2 => Waveform::Saw,
-                3 => Waveform::Triangle,
-                _ => return Err(Error::InvalidWaveform),
-            })
-        }
-
-        let load_oscillator = |i, o| -> Result<Oscillator, Error> {
-            let i = i + o * OSCILLATOR_LENGTH;
-            let octave = ((w::<u8>(slice[i]) - w(8)) * w(12)).0;
-            let detune_freq = slice[i + 1];
-            let detune = slice[i + 2] as f32 * 0.2 / 255.0 + 1.0;
-            let envelope = slice[i + 3] != 0;
-            let volume = slice[i + 4] as f32 / 255.0;
-            let waveform = parse_waveform(slice[i + 5])?;
-
-            Ok(Oscillator {
-                octave,
-                detune_freq,
-                detune,
-                envelope,
-                volume,
-                waveform,
-            })
-        };
-
-        let load_envelope = |i| -> Envelope {
-            let attack = LittleEndian::read_u32(&slice[i..i + 4]);
-            let sustain = LittleEndian::read_u32(&slice[i + 4..i + 8]);
-            let release = LittleEndian::read_u32(&slice[i + 8..i + 12]);
-            let master = slice[i + 12] as f32 * 156.0;
-
-            Envelope {
-                attack,
-                sustain,
-                release,
-                master,
-            }
-        };
-
-        let load_effects = |i| -> Result<Effects, Error> {
-            let filter = match slice[i] {
-                0 => Filter::None,
-                1 => Filter::HighPass,
-                2 => Filter::LowPass,
-                3 => Filter::BandPass,
-                4 => Filter::Notch,
-                _ => return Err(Error::InvalidFilter),
-            };
-            let i = i + 3;
-            let freq = f32::from_bits(LittleEndian::read_u32(&slice[i..i + 4]));
-            let resonance = slice[i + 4] as f32 / 255.0;
-            let delay_time = slice[i + 5];
-            let delay_amount = slice[i + 6] as f32 / 255.0;
-            let pan_freq = slice[i + 7];
-            let pan_amount = slice[i + 8] as f32 / 512.0;
-
-            Ok(Effects {
-                filter,
-                freq,
-                resonance,
-                delay_time,
-                delay_amount,
-                pan_freq,
-                pan_amount,
-            })
-        };
-
-        let load_lfo = |i| -> Result<LFO, Error> {
-            let osc0_freq = slice[i] != 0;
-            let fx_freq = slice[i + 1] != 0;
-            let freq = slice[i + 2];
-            let amount = slice[i + 3] as f32 / 512.0;
-            let waveform = parse_waveform(slice[i + 4])?;
-
-            Ok(LFO {
-                osc0_freq,
-                fx_freq,
-                freq,
-                amount,
-                waveform,
-            })
-        };
-
-        let load_sequence = |i| -> [usize; SEQUENCE_LENGTH] {
-            let mut seq = [0; SEQUENCE_LENGTH];
-
-            slice[i..i + SEQUENCE_LENGTH]
-                .iter()
-                .enumerate()
-                .for_each(|(i, &x)| {
-                    seq[i] = x as usize;
-                });
-
-            seq
-        };
-
-        let load_pattern = |i, p| -> Pattern {
-            let i = i + p * PATTERN_LENGTH;
-            let mut notes = [0; PATTERN_LENGTH];
-            notes.copy_from_slice(&slice[i..i + PATTERN_LENGTH]);
-
-            Pattern { notes }
-        };
-
-        let load_instrument = |i| -> Result<Instrument, Error> {
-            let i = HEADER_LENGTH + i * INSTRUMENT_LENGTH;
-            let osc = [load_oscillator(i, 0)?, load_oscillator(i, 1)?];
-
-            let i = i + OSCILLATOR_LENGTH * 2;
-            let noise_fader = slice[i] as f32 / 255.0;
-
-            let i = i + 4;
-            let env = load_envelope(i);
-
-            let i = i + 13;
-            let fx = load_effects(i)?;
-
-            let i = i + 12;
-            let lfo = load_lfo(i)?;
-
-            let i = i + 5;
-            let seq = load_sequence(i);
-
-            let i = i + SEQUENCE_LENGTH;
-            let mut pat = ArrayVec::new();
-            for j in 0..NUM_PATTERNS {
-                pat.push(load_pattern(i, j));
-            }
-            let pat = pat.into_inner().unwrap();
-
-            Ok(Instrument {
-                osc,
-                noise_fader,
-                env,
-                fx,
-                lfo,
-                seq,
-                pat,
-            })
-        };
 
         // Get quarter note length and eighth note length (in samples)
         // This properly handles odd quarter note lengths
@@ -310,14 +165,159 @@ impl Song {
         let seq_length = slice[HEADER_LENGTH + INSTRUMENT_LENGTH * 8] as usize;
         let mut instruments = ArrayVec::new();
         for i in 0..NUM_INSTRUMENTS {
-            instruments.push(load_instrument(i)?);
+            instruments.push(load_instrument(slice, i)?);
         }
         let instruments = instruments.into_inner().unwrap();
 
-        Ok(Song {
+        Ok(Self {
             instruments,
             seq_length,
             quarter_note_length,
         })
     }
+}
+
+fn parse_waveform(waveform: u8) -> Result<Waveform, Error> {
+    Ok(match waveform {
+        0 => Waveform::Sine,
+        1 => Waveform::Square,
+        2 => Waveform::Saw,
+        3 => Waveform::Triangle,
+        _ => return Err(Error::InvalidWaveform),
+    })
+}
+
+fn load_oscillator(slice: &[u8], i: usize, o: usize) -> Result<Oscillator, Error> {
+    let i = i + o * OSCILLATOR_LENGTH;
+    let octave = ((w::<u8>(slice[i]) - w(8)) * w(12)).0;
+    let detune_freq = slice[i + 1];
+    let detune = f32::from(slice[i + 2]) * 0.2 / 255.0 + 1.0;
+    let envelope = slice[i + 3] != 0;
+    let volume = f32::from(slice[i + 4]) / 255.0;
+    let waveform = parse_waveform(slice[i + 5])?;
+
+    Ok(Oscillator {
+        octave,
+        detune_freq,
+        detune,
+        envelope,
+        volume,
+        waveform,
+    })
+}
+
+fn load_envelope(slice: &[u8], i: usize) -> Envelope {
+    let attack = LittleEndian::read_u32(&slice[i..i + 4]);
+    let sustain = LittleEndian::read_u32(&slice[i + 4..i + 8]);
+    let release = LittleEndian::read_u32(&slice[i + 8..i + 12]);
+    let master = f32::from(slice[i + 12]) * 156.0;
+
+    Envelope {
+        attack,
+        sustain,
+        release,
+        master,
+    }
+}
+
+fn load_effects(slice: &[u8], i: usize) -> Result<Effects, Error> {
+    let filter = match slice[i] {
+        0 => Filter::None,
+        1 => Filter::HighPass,
+        2 => Filter::LowPass,
+        3 => Filter::BandPass,
+        4 => Filter::Notch,
+        _ => return Err(Error::InvalidFilter),
+    };
+    let i = i + 3;
+    let freq = f32::from_bits(LittleEndian::read_u32(&slice[i..i + 4]));
+    let resonance = f32::from(slice[i + 4]) / 255.0;
+    let delay_time = slice[i + 5];
+    let delay_amount = f32::from(slice[i + 6]) / 255.0;
+    let pan_freq = slice[i + 7];
+    let pan_amount = f32::from(slice[i + 8]) / 512.0;
+
+    Ok(Effects {
+        filter,
+        freq,
+        resonance,
+        delay_time,
+        delay_amount,
+        pan_freq,
+        pan_amount,
+    })
+}
+
+fn load_lfo(slice: &[u8], i: usize) -> Result<LFO, Error> {
+    let osc0_freq = slice[i] != 0;
+    let fx_freq = slice[i + 1] != 0;
+    let freq = slice[i + 2];
+    let amount = f32::from(slice[i + 3]) / 512.0;
+    let waveform = parse_waveform(slice[i + 4])?;
+
+    Ok(LFO {
+        osc0_freq,
+        fx_freq,
+        freq,
+        amount,
+        waveform,
+    })
+}
+
+fn load_sequence(slice: &[u8], i: usize) -> [usize; SEQUENCE_LENGTH] {
+    let mut seq = [0; SEQUENCE_LENGTH];
+
+    slice[i..i + SEQUENCE_LENGTH]
+        .iter()
+        .enumerate()
+        .for_each(|(i, &x)| {
+            seq[i] = x as usize;
+        });
+
+    seq
+}
+
+fn load_pattern(slice: &[u8], i: usize, p: usize) -> Pattern {
+    let i = i + p * PATTERN_LENGTH;
+    let mut notes = [0; PATTERN_LENGTH];
+    notes.copy_from_slice(&slice[i..i + PATTERN_LENGTH]);
+
+    Pattern { notes }
+}
+
+fn load_instrument(slice: &[u8], i: usize) -> Result<Instrument, Error> {
+    let i = HEADER_LENGTH + i * INSTRUMENT_LENGTH;
+    let osc = [load_oscillator(slice, i, 0)?, load_oscillator(slice, i, 1)?];
+
+    let i = i + OSCILLATOR_LENGTH * 2;
+    let noise_fader = f32::from(slice[i]) / 255.0;
+
+    let i = i + 4;
+    let env = load_envelope(slice, i);
+
+    let i = i + 13;
+    let fx = load_effects(slice, i)?;
+
+    let i = i + 12;
+    let lfo = load_lfo(slice, i)?;
+
+    let i = i + 5;
+    let seq = load_sequence(slice, i);
+
+    let i = i + SEQUENCE_LENGTH;
+    let mut pat = ArrayVec::new();
+    for j in 0..NUM_PATTERNS {
+        pat.push(load_pattern(slice, i, j));
+    }
+    let pat = pat.into_inner().unwrap();
+
+    Ok(Instrument {
+        osc,
+        noise_fader,
+        env,
+        fx,
+        lfo,
+        seq,
+        pat,
+    })
 }

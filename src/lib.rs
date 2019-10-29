@@ -12,6 +12,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::cast_precision_loss)]
+#![allow(clippy::cast_sign_loss)]
 
 mod consts;
 #[cfg(feature = "std")]
