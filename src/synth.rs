@@ -162,11 +162,25 @@ impl<'a> Synth<'a> {
     /// The optional seed will be used for the noise generator.
     /// `Synth` implements `Iterator` and generates two stereo samples at a time.
     ///
-    /// ```rust
-    /// let synth = Synth::new(song, None, 44100.0);
-    /// for (sample_l, sample_r) in synth {
+    /// ```no_run
+    /// use byteorder::{ByteOrder, LittleEndian};
+    /// use sonant::{Song, Synth};
+    ///
+    /// let song = Song::from_slice(include_bytes!("../examples/poseidon.snt"))?;
+    ///
+    /// // Create a seed for the PRNG
+    /// let mut seed = [0_u8; 16];
+    /// getrandom::getrandom(&mut seed).expect("failed to getrandom");
+    /// let seed = (
+    ///     LittleEndian::read_u64(&seed[0..8]),
+    ///     LittleEndian::read_u64(&seed[8..16]),
+    /// );
+    ///
+    /// let synth = Synth::new(&song, seed, 44100.0);
+    /// for [sample_l, sample_r] in synth {
     ///     // Do something with the samples
     /// }
+    /// # Ok::<(), sonant::Error>(())
     /// ```
     pub fn new(song: &'a Song, seed: (u64, u64), sample_rate: f32) -> Self {
         let random = PCG32::seed(seed.0, seed.1);

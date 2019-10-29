@@ -145,8 +145,12 @@ pub(crate) enum Waveform {
 impl Song {
     /// Create a new `Song` from a byte slice.
     ///
-    /// ```rust
-    /// Song::from_slice(include_bytes!("/some/file.snt"))
+    /// ```
+    /// use byteorder::{ByteOrder, LittleEndian};
+    /// use sonant::Song;
+    ///
+    /// let song = Song::from_slice(include_bytes!("../examples/poseidon.snt"))?;
+    /// # Ok::<(), sonant::Error>(())
     /// ```
     pub fn from_slice(slice: &[u8]) -> Result<Song, Error> {
         if slice.len() != SONG_LENGTH {
