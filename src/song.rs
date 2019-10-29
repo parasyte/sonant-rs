@@ -191,7 +191,7 @@ fn load_oscillator(slice: &[u8], i: usize, o: usize) -> Result<Oscillator, Error
     let i = i + o * OSCILLATOR_LENGTH;
     let octave = ((w::<u8>(slice[i]) - w(8)) * w(12)).0;
     let detune_freq = slice[i + 1];
-    let detune = f32::from(slice[i + 2]) * 0.2 / 255.0 + 1.0;
+    let detune = f32::from(slice[i + 2]).mul_add(0.2 / 255.0, 1.0);
     let envelope = slice[i + 3] != 0;
     let volume = f32::from(slice[i + 4]) / 255.0;
     let waveform = parse_waveform(slice[i + 5])?;

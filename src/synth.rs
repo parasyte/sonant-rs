@@ -447,8 +447,8 @@ impl<'a> Synth<'a> {
 
         // LFO
         let lfo_freq = self.tracks[i].lfo_freq;
-        let lfo = (get_osc_output(&inst.lfo.waveform, lfo_freq * position) * inst.lfo.amount)
-            .mul_add(self.sample_ratio, 0.5);
+        let lfo = get_osc_output(&inst.lfo.waveform, lfo_freq * position)
+            .mul_add(inst.lfo.amount * self.sample_ratio, 0.5);
 
         // Oscillator 0
         let mut sample = self.osc0(inst, i, j, lfo, env_sq);
@@ -467,7 +467,7 @@ impl<'a> Synth<'a> {
 
         let pan_freq = self.tracks[i].pan_freq;
         let pan_t =
-            (osc_sin(pan_freq * position) * inst.fx.pan_amount).mul_add(self.sample_ratio, 0.5);
+            osc_sin(pan_freq * position).mul_add(inst.fx.pan_amount * self.sample_ratio, 0.5);
 
         if self.tracks[i].notes[j].swap_stereo {
             Some([sample * (1.0 - pan_t), sample * pan_t])
