@@ -146,7 +146,6 @@ impl Song {
     /// Create a new `Song` from a byte slice.
     ///
     /// ```
-    /// use byteorder::{ByteOrder, LittleEndian};
     /// use sonant::Song;
     ///
     /// let song = Song::from_slice(include_bytes!("../examples/poseidon.snt"))?;
