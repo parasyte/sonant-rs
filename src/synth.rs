@@ -205,8 +205,8 @@ impl<'a> Synth<'a> {
             tracks: Self::load_tracks(
                 &song,
                 sample_ratio,
-                quarter_note_length as f32 * sample_ratio,
-                eighth_note_length,
+                quarter_note_length as f32,
+                eighth_note_length as f32,
             ),
         };
         synth.load_notes();
@@ -219,7 +219,7 @@ impl<'a> Synth<'a> {
         song: &Song,
         sample_ratio: f32,
         quarter_note_length: f32,
-        eighth_note_length: u32,
+        eighth_note_length: f32,
     ) -> [TrackState; NUM_INSTRUMENTS] {
         let mut tracks = ArrayVec::<[_; NUM_INSTRUMENTS]>::new();
         for _ in 0..NUM_INSTRUMENTS {
@@ -234,7 +234,7 @@ impl<'a> Synth<'a> {
             tracks[i].env.release = (inst.env.release as f32 * sample_ratio) as u32;
 
             // Configure delay
-            tracks[i].delay_samples = u32::from(inst.fx.delay_time) * eighth_note_length;
+            tracks[i].delay_samples = (f32::from(inst.fx.delay_time) * eighth_note_length) as u32;
             tracks[i].delay_count = if inst.fx.delay_amount == 0.0 {
                 // Special case for zero repeats
                 0
