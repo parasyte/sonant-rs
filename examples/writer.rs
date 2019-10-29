@@ -1,9 +1,13 @@
+#![deny(clippy::all)]
+#![deny(clippy::pedantic)]
+#![allow(clippy::cast_possible_truncation)]
+
 use std::fs::File;
 use std::io::{self, BufWriter, Read};
 use std::process;
 
 use arrayvec::ArrayVec;
-use byteorder::{ByteOrder, LittleEndian};
+use byteorder::{ByteOrder, NativeEndian};
 use colored::Colorize;
 use riff_wave::{WaveWriter, WriteError};
 use thiserror::Error;
@@ -19,13 +23,13 @@ pub enum Error {
     MissingWavFilename,
 
     #[error("Sonant error")]
-    SonantError(#[from] SonantError),
+    Sonant(#[from] SonantError),
 
     #[error("I/O error")]
-    IOError(#[from] io::Error),
+    IO(#[from] io::Error),
 
     #[error("Wave writer error")]
-    WriterError(#[from] WriteError),
+    Writer(#[from] WriteError),
 }
 
 fn main() {
@@ -46,15 +50,14 @@ fn writer() -> Result<(), Error> {
     let mut seed = [0_u8; 16];
     getrandom::getrandom(&mut seed).expect("failed to getrandom");
     let seed = (
-        LittleEndian::read_u64(&seed[0..8]),
-        LittleEndian::read_u64(&seed[8..16]),
+        NativeEndian::read_u64(&seed[0..8]),
+        NativeEndian::read_u64(&seed[8..16]),
     );
 
     // Load a sonant song and create a synth
     let song = Song::from_slice(&data)?;
     let synth = Synth::new(&song, seed, 44100.0 as f32)
-        .map(ArrayVec::from)
-        .flatten()
+        .flat_map(ArrayVec::from)
         .peekable();
 
     // Write the wav file
@@ -63,7 +66,7 @@ fn writer() -> Result<(), Error> {
     let mut wave_writer = WaveWriter::new(2, 44100, 16, writer)?;
 
     for sample in synth {
-        let sample = (sample * i16::max_value() as f32) as i16;
+        let sample = (sample * f32::from(i16::max_value())).round() as i16;
         wave_writer.write_sample_i16(sample)?;
     }
 

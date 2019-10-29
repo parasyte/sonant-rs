@@ -10,6 +10,8 @@
 //!   `no_std` environment.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![deny(clippy::all)]
+#![deny(clippy::pedantic)]
 
 mod consts;
 #[cfg(feature = "std")]

@@ -1,9 +1,15 @@
+#![deny(clippy::all)]
+#![deny(clippy::pedantic)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::cast_precision_loss)]
+#![allow(clippy::cast_sign_loss)]
+
 use std::fs::File;
 use std::io::{self, Read};
 use std::process;
 
 use arrayvec::ArrayVec;
-use byteorder::{ByteOrder, LittleEndian};
+use byteorder::{ByteOrder, NativeEndian};
 use colored::Colorize;
 use cpal::traits::{DeviceTrait, EventLoopTrait, HostTrait};
 use cpal::{StreamData, UnknownTypeOutputBuffer};
@@ -17,10 +23,10 @@ pub enum Error {
     MissingFilename,
 
     #[error("Sonant error")]
-    SonantError(#[from] SonantError),
+    Sonant(#[from] SonantError),
 
     #[error("I/O error")]
-    IOError(#[from] io::Error),
+    IO(#[from] io::Error),
 }
 
 fn main() {
@@ -60,15 +66,14 @@ fn player() -> Result<(), Error> {
     let mut seed = [0_u8; 16];
     getrandom::getrandom(&mut seed).expect("failed to getrandom");
     let seed = (
-        LittleEndian::read_u64(&seed[0..8]),
-        LittleEndian::read_u64(&seed[8..16]),
+        NativeEndian::read_u64(&seed[0..8]),
+        NativeEndian::read_u64(&seed[8..16]),
     );
 
     // Load a sonant song and create a synth
     let song = Song::from_slice(&data)?;
     let mut synth = Synth::new(&song, seed, format.sample_rate.0 as f32)
-        .map(ArrayVec::from)
-        .flatten()
+        .flat_map(ArrayVec::from)
         .peekable();
 
     // cpal event loop; this is the actual audio player
@@ -85,9 +90,9 @@ fn player() -> Result<(), Error> {
             StreamData::Output {
                 buffer: UnknownTypeOutputBuffer::U16(mut buffer),
             } => {
-                let max = i16::max_value() as f32;
+                let max = f32::from(i16::max_value());
                 for (elem, sample) in buffer.iter_mut().zip(synth.by_ref()) {
-                    *elem = (sample * max + max) as u16;
+                    *elem = sample.mul_add(max, max).round() as u16;
                 }
                 if synth.peek() == None {
                     process::exit(0);
@@ -97,7 +102,7 @@ fn player() -> Result<(), Error> {
                 buffer: UnknownTypeOutputBuffer::I16(mut buffer),
             } => {
                 for (elem, sample) in buffer.iter_mut().zip(synth.by_ref()) {
-                    *elem = (sample * i16::max_value() as f32) as i16;
+                    *elem = (sample * f32::from(i16::max_value())).round() as i16;
                 }
                 if synth.peek() == None {
                     process::exit(0);

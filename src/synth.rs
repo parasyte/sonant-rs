@@ -10,8 +10,10 @@ use randomize::PCG32;
 use crate::consts::*;
 use crate::song::{Envelope, Filter, Instrument, Song, Waveform};
 
-/// The main struct for audio synthesis. `Synth` implements `Iterator`, so
-/// calling the `next` method on it will generate the next sample.
+/// The main struct for audio synthesis.
+///
+/// `Synth` implements `Iterator`, so calling the `next` method on it will generate the next
+/// sample.
 ///
 /// Currently only generates 2-channel f32 samples at the given `sample_rate`.
 #[derive(Debug)]
@@ -163,17 +165,18 @@ impl<'a> Synth<'a> {
     /// `Synth` implements `Iterator` and generates two stereo samples at a time.
     ///
     /// ```no_run
-    /// use byteorder::{ByteOrder, LittleEndian};
+    /// use byteorder::{ByteOrder, NativeEndian};
+    /// use getrandom::getrandom;
     /// use sonant::{Song, Synth};
     ///
     /// let song = Song::from_slice(include_bytes!("../examples/poseidon.snt"))?;
     ///
     /// // Create a seed for the PRNG
     /// let mut seed = [0_u8; 16];
-    /// getrandom::getrandom(&mut seed).expect("failed to getrandom");
+    /// getrandom(&mut seed).expect("failed to getrandom");
     /// let seed = (
-    ///     LittleEndian::read_u64(&seed[0..8]),
-    ///     LittleEndian::read_u64(&seed[8..16]),
+    ///     NativeEndian::read_u64(&seed[0..8]),
+    ///     NativeEndian::read_u64(&seed[8..16]),
     /// );
     ///
     /// let synth = Synth::new(&song, seed, 44100.0);

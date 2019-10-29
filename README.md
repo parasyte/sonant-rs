@@ -8,7 +8,7 @@ Sonant [(C) 2008-2009 Jake Taylor](https://creativecommons.org/licenses/by-nc-sa
 
 A tiny synthesizer written for 4K intros. It is capable of producing high quality audio with very little code and instrument data. Song files are just over 3KB, but can also be customized to reduce the number of instrument tracks or patterns if you have a tighter size budget.
 
-The Sonant-rs `Synth` is implemented as an iterator, which makes it ideal for producing realtime audio streams with very little memory overhead; about 6.2 KB for the song data, and another 2.5 KB for buffering note frequencies. It was originally written to target Nintendo 64, which has a baseline of 4 MB of system memory!
+The `sonant::Synth` type is implemented as an iterator, which makes it ideal for producing realtime audio streams with very little memory overhead; about 6.2 KB for the song data, and another 2.5 KB for buffering note frequencies. It was originally written to target Nintendo 64, which has a baseline of 4 MB of system memory!
 
 Unfortunately, it's too slow to run on the N64's 93 MHz CPU. It would probably work on the RCP, e.g. by computing 8 samples at a time on the vector unit. But that would require porting the sample generators to use 16-bit fixed point numbers. Then there's also the problem that rustc cannot target RCP. Oh well!
 
