@@ -1,0 +1,23 @@
+language: rust
+rust:
+# MSRV
+- 1.36.0
+
+# Stable release channel
+- stable
+
+cache: cargo
+
+matrix:
+  fast_finish: true
+
+before_script:
+- rustup component add clippy
+- rustup component add rustfmt
+- sudo apt-get update
+- sudo apt-get -y install libasound2-dev
+
+script:
+- cargo clippy --all -- -D warnings
+- cargo test --all
+- cargo fmt --all -- --check
