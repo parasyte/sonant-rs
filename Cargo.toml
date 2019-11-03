@@ -1,5 +1,7 @@
 [package]
 name = "sonant"
+description = "A Rust port of the Sonant 4K synth with streaming support."
+repository = "https://github.com/parasyte/sonant-rs"
 version = "0.1.0"
 authors = ["Jay Oster <jay@kodewerx.org>"]
 license = "MIT"
