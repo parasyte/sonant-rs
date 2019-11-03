@@ -17,8 +17,6 @@
 #![allow(clippy::cast_sign_loss)]
 
 mod consts;
-#[cfg(feature = "std")]
-pub mod errors;
 mod song;
 mod synth;
 

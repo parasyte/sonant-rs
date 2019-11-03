@@ -9,10 +9,11 @@ use std::process;
 use arrayvec::ArrayVec;
 use byteorder::{ByteOrder, NativeEndian};
 use colored::Colorize;
+use error_iter::ErrorIter;
 use riff_wave::{WaveWriter, WriteError};
 use thiserror::Error;
 
-use sonant::{errors::iter_sources, Error as SonantError, Song, Synth};
+use sonant::{Error as SonantError, Song, Synth};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -31,6 +32,8 @@ pub enum Error {
     #[error("Wave writer error")]
     Writer(#[from] WriteError),
 }
+
+impl ErrorIter for Error {}
 
 fn main() {
     handle_errors(writer());
@@ -75,13 +78,13 @@ fn writer() -> Result<(), Error> {
 
 pub fn handle_errors<E>(result: Result<(), E>)
 where
-    E: std::error::Error + 'static,
+    E: std::error::Error + ErrorIter + 'static,
 {
     match result {
         Err(e) => {
             eprintln!("{} {}", "error:".red(), e);
 
-            for cause in iter_sources(&e) {
+            for cause in e.iter_sources() {
                 eprintln!("{} {}", "caused by:".bright_red(), cause);
             }
 
