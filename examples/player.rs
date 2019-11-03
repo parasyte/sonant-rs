@@ -13,9 +13,10 @@ use byteorder::{ByteOrder, NativeEndian};
 use colored::Colorize;
 use cpal::traits::{DeviceTrait, EventLoopTrait, HostTrait};
 use cpal::{StreamData, UnknownTypeOutputBuffer};
+use error_iter::ErrorIter;
 use thiserror::Error;
 
-use sonant::{errors::iter_sources, Error as SonantError, Song, Synth};
+use sonant::{Error as SonantError, Song, Synth};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -28,6 +29,8 @@ pub enum Error {
     #[error("I/O error")]
     IO(#[from] io::Error),
 }
+
+impl ErrorIter for Error {}
 
 fn main() {
     handle_errors(player());
@@ -125,13 +128,13 @@ fn player() -> Result<(), Error> {
 
 pub fn handle_errors<E>(result: Result<(), E>)
 where
-    E: std::error::Error + 'static,
+    E: std::error::Error + ErrorIter + 'static,
 {
     match result {
         Err(e) => {
             eprintln!("{} {}", "error:".red(), e);
 
-            for cause in iter_sources(&e) {
+            for cause in e.iter_sources() {
                 eprintln!("{} {}", "caused by:".bright_red(), cause);
             }
 
