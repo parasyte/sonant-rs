@@ -13,12 +13,15 @@ use crate::consts::*;
 #[derive(Debug)]
 #[cfg_attr(feature = "std", derive(Error))]
 pub enum Error {
+    /// Incorrect file length
     #[error("Incorrect file length")]
     FileLength,
 
+    /// Invalid waveform
     #[error("Invalid waveform")]
     InvalidWaveform,
 
+    /// Invalid filter
     #[error("Invalid filter")]
     InvalidFilter,
 }
