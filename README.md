@@ -1,5 +1,8 @@
 # Sonant-rs
 
+[![Build Status](https://travis-ci.org/parasyte/sonant-rs.svg?branch=master)](https://travis-ci.org/parasyte/sonant-rs)
+[![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
+
 A Rust port of the [Sonant 4K synth](http://www.pouet.net/prod.php?which=53615) with streaming support.
 
 Sonant [(C) 2008-2009 Jake Taylor](https://creativecommons.org/licenses/by-nc-sa/2.5/) [ Ferris / Youth Uprising ]

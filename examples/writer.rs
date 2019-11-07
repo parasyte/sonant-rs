@@ -1,6 +1,7 @@
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
 #![allow(clippy::cast_possible_truncation)]
+#![forbid(unsafe_code)]
 
 use std::fs::File;
 use std::io::{self, BufWriter, Read};
