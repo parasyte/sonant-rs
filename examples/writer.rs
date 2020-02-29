@@ -85,7 +85,7 @@ where
         Err(e) => {
             eprintln!("{} {}", "error:".red(), e);
 
-            for cause in e.iter_sources() {
+            for cause in e.chain().skip(1) {
                 eprintln!("{} {}", "caused by:".bright_red(), cause);
             }
 

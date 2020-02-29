@@ -3,8 +3,6 @@ use core::f32::EPSILON;
 use core::num::Wrapping as w;
 
 use arrayvec::ArrayVec;
-#[allow(unused_imports)]
-use libm::F32Ext;
 use randomize::PCG32;
 
 use crate::consts::{MAX_OVERLAPPING_NOTES, NUM_CHANNELS, NUM_INSTRUMENTS, PATTERN_LENGTH};
@@ -69,7 +67,7 @@ struct Note {
 
 /// Sine wave generator
 fn osc_sin(value: f32) -> f32 {
-    ((value + 0.5) * PI * 2.0).sin()
+    libm::sinf((value + 0.5) * PI * 2.0)
 }
 
 /// Square wave generator
@@ -83,12 +81,14 @@ fn osc_square(value: f32) -> f32 {
 
 /// Saw wave generator
 fn osc_saw(value: f32) -> f32 {
-    (1.0 - value.fract()) - 0.5
+    let fract = value - libm::truncf(value);
+    (1.0 - fract) - 0.5
 }
 
 /// Triangle wave generator
 fn osc_tri(value: f32) -> f32 {
-    let v2 = value.fract() * 4.0;
+    let fract = value - libm::truncf(value);
+    let v2 = fract * 4.0;
 
     if v2 < 2.0 {
         v2 - 1.0
@@ -101,7 +101,7 @@ fn osc_tri(value: f32) -> f32 {
 /// frequency `ref_freq` and reference pitch `ref_pitch`, using the interval
 /// `semitone`.
 fn get_frequency(ref_freq: f32, semitone: f32, note: u8, ref_pitch: u8) -> f32 {
-    ref_freq * semitone.powf(f32::from(note) - f32::from(ref_pitch))
+    ref_freq * libm::powf(semitone, f32::from(note) - f32::from(ref_pitch))
 }
 
 /// Get the absolute frequency for a note value on the 12-TET scale.
@@ -238,7 +238,7 @@ impl<'a> Synth<'a> {
             tracks[i].delay_count = if inst.fx.delay_amount == 0.0 {
                 // Special case for zero repeats
                 0
-            } else if (inst.fx.delay_amount - 1.0).abs() < EPSILON {
+            } else if libm::fabsf(inst.fx.delay_amount - 1.0) < EPSILON {
                 // Special case for infinite repeats
                 u32::max_value()
             } else if tracks[i].delay_samples == 0 {
@@ -246,8 +246,9 @@ impl<'a> Synth<'a> {
                 1
             } else {
                 // This gets the number of iterations required for the note
-                // volume to drop below the audible threashold.
-                (256.0_f32).log(1.0 / inst.fx.delay_amount) as u32
+                // volume to drop below the audible threshold.
+                let base = libm::logf(1.0 / inst.fx.delay_amount);
+                (libm::logf(256.0) / base) as u32
             };
 
             // Set LFO and panning frequencies
@@ -297,7 +298,7 @@ impl<'a> Synth<'a> {
                 let note_count = ((position % pattern_length) / self.quarter_note_length) as usize;
 
                 // Add the note
-                let volume = inst.fx.delay_amount.powf(round as f32);
+                let volume = libm::powf(inst.fx.delay_amount, round as f32);
                 self.add_note(i, seq_count, note_count, volume, round % 2 == 1);
             }
         }
@@ -409,11 +410,11 @@ impl<'a> Synth<'a> {
         if inst.lfo.fx_freq {
             f *= lfo;
         }
-        f = (f * PI / self.sample_rate).sin() * 1.5;
+        f = libm::sinf(f * PI / self.sample_rate) * 1.5;
 
-        let low = f.mul_add(self.tracks[i].notes[j].band, self.tracks[i].notes[j].low);
+        let low = libm::fmaf(f, self.tracks[i].notes[j].band, self.tracks[i].notes[j].low);
         let high = inst.fx.resonance * (sample - self.tracks[i].notes[j].band) - low;
-        let band = f.mul_add(high, self.tracks[i].notes[j].band);
+        let band = libm::fmaf(f, high, self.tracks[i].notes[j].band);
 
         self.tracks[i].notes[j].low = low;
         self.tracks[i].notes[j].band = band;
@@ -447,8 +448,11 @@ impl<'a> Synth<'a> {
 
         // LFO
         let lfo_freq = self.tracks[i].lfo_freq;
-        let lfo = get_osc_output(&inst.lfo.waveform, lfo_freq * position)
-            .mul_add(inst.lfo.amount * self.sample_ratio, 0.5);
+        let lfo = libm::fmaf(
+            get_osc_output(&inst.lfo.waveform, lfo_freq * position),
+            inst.lfo.amount * self.sample_ratio,
+            0.5,
+        );
 
         // Oscillator 0
         let mut sample = self.osc0(inst, i, j, lfo, env_sq);
@@ -466,8 +470,11 @@ impl<'a> Synth<'a> {
         sample += self.filters(inst, i, j, lfo, sample);
 
         let pan_freq = self.tracks[i].pan_freq;
-        let pan_t =
-            osc_sin(pan_freq * position).mul_add(inst.fx.pan_amount * self.sample_ratio, 0.5);
+        let pan_t = libm::fmaf(
+            osc_sin(pan_freq * position),
+            inst.fx.pan_amount * self.sample_ratio,
+            0.5,
+        );
 
         if self.tracks[i].notes[j].swap_stereo {
             Some([sample * (1.0 - pan_t), sample * pan_t])
