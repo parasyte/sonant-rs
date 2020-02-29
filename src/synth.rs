@@ -7,7 +7,7 @@ use arrayvec::ArrayVec;
 use libm::F32Ext;
 use randomize::PCG32;
 
-use crate::consts::*;
+use crate::consts::{MAX_OVERLAPPING_NOTES, NUM_CHANNELS, NUM_INSTRUMENTS, PATTERN_LENGTH};
 use crate::song::{Envelope, Filter, Instrument, Song, Waveform};
 
 /// The main struct for audio synthesis.
