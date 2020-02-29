@@ -7,7 +7,10 @@ use byteorder::{ByteOrder, LittleEndian};
 #[cfg(feature = "std")]
 use thiserror::Error;
 
-use crate::consts::*;
+use crate::consts::{
+    HEADER_LENGTH, INSTRUMENT_LENGTH, NUM_INSTRUMENTS, NUM_PATTERNS, OSCILLATOR_LENGTH,
+    PATTERN_LENGTH, SEQUENCE_LENGTH, SONG_LENGTH,
+};
 
 /// Possible errors.
 #[derive(Debug)]
@@ -154,6 +157,10 @@ impl Song {
     /// let song = Song::from_slice(include_bytes!("../examples/poseidon.snt"))?;
     /// # Ok::<(), sonant::Error>(())
     /// ```
+    ///
+    /// # Errors
+    ///
+    /// An error is returned when the song data cannot be parsed.
     pub fn from_slice(slice: &[u8]) -> Result<Self, Error> {
         if slice.len() != SONG_LENGTH {
             return Err(Error::FileLength);
