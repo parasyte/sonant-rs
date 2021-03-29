@@ -27,6 +27,10 @@ pub enum Error {
     /// Invalid filter
     #[cfg_attr(feature = "std", error("Invalid filter"))]
     InvalidFilter,
+
+    /// Invalid instruments
+    #[cfg_attr(feature = "std", error("Invalid instruments"))]
+    InvalidInstruments,
 }
 
 /// A `Song` contains a list of up to 8 `Instruments` and defines the sample
@@ -46,7 +50,7 @@ pub(crate) struct Instrument {
     pub(crate) noise_fader: f32,              // Noise Oscillator
     pub(crate) env: Envelope,                 // Envelope
     pub(crate) fx: Effects,                   // Effects
-    pub(crate) lfo: LFO,                      // Low-Frequency Oscillator
+    pub(crate) lfo: Lfo,                      // Low-Frequency Oscillator
     pub(crate) seq: [usize; SEQUENCE_LENGTH], // Sequence of patterns
     pub(crate) pat: [Pattern; NUM_PATTERNS],  // List of available patterns
 }
@@ -87,7 +91,7 @@ pub(crate) struct Effects {
 /// `LFO` is a Low-Frequency Oscillator. It can be used to adjust the frequency
 /// of `Oscillator` 0 and `Effects` over time.
 #[derive(Debug)]
-pub(crate) struct LFO {
+pub(crate) struct Lfo {
     pub(crate) osc0_freq: bool,    // Modify Oscillator 0 frequency (FM) toggle
     pub(crate) fx_freq: bool,      // Modify FX frequency toggle
     pub(crate) freq: u8,           // LFO frequency
@@ -176,7 +180,9 @@ impl Song {
         for i in 0..NUM_INSTRUMENTS {
             instruments.push(load_instrument(slice, i)?);
         }
-        let instruments = instruments.into_inner().unwrap();
+        let instruments = instruments
+            .into_inner()
+            .map_err(|_| Error::InvalidInstruments)?;
 
         Ok(Self {
             instruments,
@@ -257,14 +263,14 @@ fn load_effects(slice: &[u8], i: usize) -> Result<Effects, Error> {
     })
 }
 
-fn load_lfo(slice: &[u8], i: usize) -> Result<LFO, Error> {
+fn load_lfo(slice: &[u8], i: usize) -> Result<Lfo, Error> {
     let osc0_freq = slice[i] != 0;
     let fx_freq = slice[i + 1] != 0;
     let freq = slice[i + 2];
     let amount = f32::from(slice[i + 3]) / 512.0;
     let waveform = parse_waveform(slice[i + 4])?;
 
-    Ok(LFO {
+    Ok(Lfo {
         osc0_freq,
         fx_freq,
         freq,
