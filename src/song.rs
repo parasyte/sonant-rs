@@ -1,9 +1,6 @@
-use core::f32;
-use core::fmt;
-use core::num::Wrapping as w;
-
 use arrayvec::ArrayVec;
 use byteorder::{ByteOrder, LittleEndian};
+use core::{f32, num::Wrapping as w};
 #[cfg(feature = "std")]
 use thiserror::Error;
 
@@ -45,6 +42,7 @@ pub struct Song {
 /// Contains two `Oscillator`s, a simple `Envelope`, `Effects` and `LFO`. The
 /// tracker `Sequence` (up to 48) is defined here, as well as the tracker
 /// `Patterns` (up to 10).
+#[derive(Debug)]
 pub(crate) struct Instrument {
     pub(crate) osc: [Oscillator; 2],          // Oscillators 0 and 1
     pub(crate) noise_fader: f32,              // Noise Oscillator
@@ -97,34 +95,6 @@ pub(crate) struct Lfo {
     pub(crate) freq: u8,           // LFO frequency
     pub(crate) amount: f32,        // LFO amount
     pub(crate) waveform: Waveform, // LFO waveform
-}
-
-#[cfg(feature = "std")]
-impl fmt::Debug for Instrument {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Instrument {{ ")?;
-        write!(f, "osc: {:?}, ", self.osc)?;
-        write!(f, "env: {:?}, ", self.env)?;
-        write!(f, "fx: {:?}, ", self.fx)?;
-        write!(f, "lfo: {:?}, ", self.lfo)?;
-        write!(f, "pat: {:?}, ", self.pat)?;
-        write!(f, "seq: [")?;
-        let mut iter = self.seq.iter();
-        if let Some(i) = iter.next() {
-            write!(f, "{:?}", i)?;
-        }
-        for i in iter {
-            write!(f, ", {:?}", i)?;
-        }
-        write!(f, "] }}")
-    }
-}
-
-#[cfg(not(feature = "std"))]
-impl fmt::Debug for Instrument {
-    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        Ok(())
-    }
 }
 
 /// Contains the tracker notes (up to 32).
