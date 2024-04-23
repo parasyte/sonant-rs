@@ -3,18 +3,14 @@
 #![allow(clippy::cast_possible_truncation)]
 #![forbid(unsafe_code)]
 
-use std::fs::File;
-use std::io::{self, BufWriter, Read};
-use std::process;
-
 use arrayvec::ArrayVec;
-use byteorder::{ByteOrder, NativeEndian};
+use byteorder::{ByteOrder as _, NativeEndian};
 use colored::Colorize;
-use error_iter::ErrorIter;
+use error_iter::ErrorIter as _;
 use riff_wave::{WaveWriter, WriteError};
-use thiserror::Error;
-
 use sonant::{Error as SonantError, Song, Synth};
+use std::{fs::File, io::BufWriter, process::ExitCode};
+use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -28,16 +24,25 @@ pub enum Error {
     Sonant(#[from] SonantError),
 
     #[error("I/O error")]
-    IO(#[from] io::Error),
+    Io(#[from] std::io::Error),
 
     #[error("Wave writer error")]
     Writer(#[from] WriteError),
 }
 
-impl ErrorIter for Error {}
+fn main() -> ExitCode {
+    match writer() {
+        Err(e) => {
+            eprintln!("{} {}", "error:".red(), e);
 
-fn main() {
-    handle_errors(writer());
+            for cause in e.sources().skip(1) {
+                eprintln!("{} {}", "caused by:".bright_red(), cause);
+            }
+
+            ExitCode::FAILURE
+        }
+        Ok(()) => ExitCode::SUCCESS,
+    }
 }
 
 fn writer() -> Result<(), Error> {
@@ -46,9 +51,7 @@ fn writer() -> Result<(), Error> {
     let wav_filename = args.next().ok_or(Error::MissingWavFilename)?;
 
     // Read the snt file
-    let mut file = File::open(snt_filename)?;
-    let mut data = Vec::new();
-    file.read_to_end(&mut data)?;
+    let data = std::fs::read(snt_filename)?;
 
     // Create a seed for the PRNG
     let mut seed = [0_u8; 16];
@@ -60,37 +63,17 @@ fn writer() -> Result<(), Error> {
 
     // Load a sonant song and create a synth
     let song = Song::from_slice(&data)?;
-    let synth = Synth::new(&song, seed, 44100.0 as f32)
-        .flat_map(ArrayVec::from)
-        .peekable();
+    let synth = Synth::new(&song, seed, 44100.0);
 
     // Write the wav file
     let file = File::create(wav_filename)?;
     let writer = BufWriter::new(file);
     let mut wave_writer = WaveWriter::new(2, 44100, 16, writer)?;
 
-    for sample in synth {
-        let sample = (sample * f32::from(i16::max_value())).round() as i16;
+    for sample in synth.flat_map(ArrayVec::from) {
+        let sample = (sample * f32::from(i16::MAX)).round() as i16;
         wave_writer.write_sample_i16(sample)?;
     }
 
     Ok(())
-}
-
-pub fn handle_errors<E>(result: Result<(), E>)
-where
-    E: std::error::Error + ErrorIter + 'static,
-{
-    match result {
-        Err(e) => {
-            eprintln!("{} {}", "error:".red(), e);
-
-            for cause in e.chain().skip(1) {
-                eprintln!("{} {}", "caused by:".bright_red(), cause);
-            }
-
-            process::exit(1);
-        }
-        Ok(()) => (),
-    };
 }

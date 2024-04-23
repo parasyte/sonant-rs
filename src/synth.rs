@@ -1,12 +1,8 @@
-use core::f32::consts::PI;
-use core::f32::EPSILON;
-use core::num::Wrapping as w;
-
-use arrayvec::ArrayVec;
-use randomize::PCG32;
-
 use crate::consts::{MAX_OVERLAPPING_NOTES, NUM_CHANNELS, NUM_INSTRUMENTS, PATTERN_LENGTH};
 use crate::song::{Envelope, Filter, Instrument, Song, Waveform};
+use arrayvec::ArrayVec;
+use core::{f32::consts::PI, num::Wrapping as w};
+use randomize::{Gen32 as _, PCG32};
 
 /// The main struct for audio synthesis.
 ///
@@ -187,7 +183,7 @@ impl<'a> Synth<'a> {
     /// ```
     #[must_use]
     pub fn new(song: &'a Song, seed: (u64, u64), sample_rate: f32) -> Self {
-        let random = PCG32::seed(seed.0, seed.1);
+        let random = PCG32::new(seed.0, seed.1);
         let sample_ratio = sample_rate / 44100.0;
         let quarter_note_length = (sample_ratio * song.quarter_note_length as f32) as u32;
         let eighth_note_length = quarter_note_length / 2;
@@ -203,7 +199,7 @@ impl<'a> Synth<'a> {
             sample_count: 0,
             note_count: 0,
             tracks: Self::load_tracks(
-                &song,
+                song,
                 sample_ratio,
                 quarter_note_length as f32,
                 eighth_note_length as f32,
@@ -221,7 +217,7 @@ impl<'a> Synth<'a> {
         quarter_note_length: f32,
         eighth_note_length: f32,
     ) -> [TrackState; NUM_INSTRUMENTS] {
-        let mut tracks = ArrayVec::<[_; NUM_INSTRUMENTS]>::new();
+        let mut tracks = ArrayVec::<_, NUM_INSTRUMENTS>::new();
         for _ in 0..NUM_INSTRUMENTS {
             tracks.push(TrackState::new());
         }
@@ -238,9 +234,9 @@ impl<'a> Synth<'a> {
             tracks[i].delay_count = if inst.fx.delay_amount == 0.0 {
                 // Special case for zero repeats
                 0
-            } else if libm::fabsf(inst.fx.delay_amount - 1.0) < EPSILON {
+            } else if libm::fabsf(inst.fx.delay_amount - 1.0) < f32::EPSILON {
                 // Special case for infinite repeats
-                u32::max_value()
+                u32::MAX
             } else if tracks[i].delay_samples == 0 {
                 // Special case for zero-delay time: only repeat once
                 1
@@ -440,11 +436,7 @@ impl<'a> Synth<'a> {
     ) -> Option<[f32; NUM_CHANNELS]> {
         // Envelope
         let note_sample_count = self.tracks[i].notes[j].sample_count;
-        let (env, env_sq) =
-            match Self::env(self.sample_count - note_sample_count, &self.tracks[i].env) {
-                Some((env, env_sq)) => (env, env_sq),
-                None => return None,
-            };
+        let (env, env_sq) = Self::env(self.sample_count - note_sample_count, &self.tracks[i].env)?;
 
         // LFO
         let lfo_freq = self.tracks[i].lfo_freq;
@@ -461,7 +453,7 @@ impl<'a> Synth<'a> {
         sample += self.osc1(inst, i, j, env_sq);
 
         // Noise oscillator
-        sample += osc_sin(randomize::f32_closed(self.random.next_u32())) * inst.noise_fader * env;
+        sample += osc_sin(self.random.next_f32_unit()) * inst.noise_fader * env;
 
         // Envelope
         sample *= env * self.tracks[i].notes[j].volume;
@@ -486,7 +478,7 @@ impl<'a> Synth<'a> {
     /// Update the sample generator. This is the main workhorse of the
     /// synthesizer.
     fn update(&mut self) -> [f32; NUM_CHANNELS] {
-        let amplitude = f32::from(i16::max_value());
+        let amplitude = f32::from(i16::MAX);
         let position = self.sample_count as f32;
 
         // Output samples
@@ -512,7 +504,7 @@ impl<'a> Synth<'a> {
 
         // Clip samples to [-1.0, 1.0]
         for sample in &mut samples {
-            *sample = (*sample / amplitude).min(1.0).max(-1.0);
+            *sample = (*sample / amplitude).clamp(-1.0, 1.0);
         }
 
         samples
