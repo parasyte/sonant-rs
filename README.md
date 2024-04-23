@@ -1,6 +1,8 @@
 # Sonant-rs
 
-[![Build Status](https://travis-ci.org/parasyte/sonant-rs.svg?branch=master)](https://travis-ci.org/parasyte/sonant-rs)
+[![Crates.io](https://img.shields.io/crates/v/sonant)](https://crates.io/crates/sonant "Crates.io version")
+[![Documentation](https://img.shields.io/docsrs/sonant)](https://docs.rs/sonant "Documentation")
+[![GitHub actions](https://img.shields.io/github/actions/workflow/status/parasyte/sonant-rs/ci.yml?branch=main)](https://github.com/parasyte/sonant-rs/actions "CI")
 [![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
 
 A Rust port of the [Sonant 4K synth](http://www.pouet.net/prod.php?which=53615) with streaming support.
