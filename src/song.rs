@@ -1,13 +1,10 @@
+use crate::consts::{HEADER_LENGTH, INSTRUMENT_LENGTH, NUM_INSTRUMENTS, NUM_PATTERNS};
+use crate::consts::{OSCILLATOR_LENGTH, PATTERN_LENGTH, SEQUENCE_LENGTH, SONG_LENGTH};
 use arrayvec::ArrayVec;
-use byteorder::{ByteOrder, LittleEndian};
-use core::{f32, num::Wrapping as w};
+use byteorder::{ByteOrder as _, LittleEndian};
+use core::num::Wrapping as w;
 #[cfg(feature = "std")]
 use thiserror::Error;
-
-use crate::consts::{
-    HEADER_LENGTH, INSTRUMENT_LENGTH, NUM_INSTRUMENTS, NUM_PATTERNS, OSCILLATOR_LENGTH,
-    PATTERN_LENGTH, SEQUENCE_LENGTH, SONG_LENGTH,
-};
 
 /// Possible errors.
 #[derive(Debug)]

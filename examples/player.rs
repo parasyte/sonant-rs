@@ -109,9 +109,9 @@ where
 
             // Request samples from the main thread
             audio_tx.send((buffer.len(), tx)).unwrap();
-            let synth = rx.recv().unwrap();
+            let samples = rx.recv().unwrap();
 
-            for (elem, sample) in buffer.iter_mut().zip(synth) {
+            for (elem, sample) in buffer.iter_mut().zip(samples) {
                 *elem = T::from_sample(sample);
             }
         },
@@ -124,9 +124,9 @@ where
 
     // Send samples requested by the audio thread.
     while let Ok((len, tx)) = audio_rx.recv() {
-        let chunk = synth.by_ref().take(len).collect::<Vec<_>>();
-        let done = chunk.is_empty();
-        tx.send(chunk).unwrap();
+        let samples = synth.by_ref().take(len).collect::<Vec<_>>();
+        let done = samples.is_empty();
+        tx.send(samples).unwrap();
         if done {
             break;
         }

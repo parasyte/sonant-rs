@@ -4,15 +4,13 @@
 #![forbid(unsafe_code)]
 
 use arrayvec::ArrayVec;
-use byteorder::{ByteOrder, NativeEndian};
+use byteorder::{ByteOrder as _, NativeEndian};
 use colored::Colorize;
 use error_iter::ErrorIter as _;
 use riff_wave::{WaveWriter, WriteError};
-use std::io::{self, BufWriter, Read};
-use std::{fs::File, process::ExitCode};
-use thiserror::Error;
-
 use sonant::{Error as SonantError, Song, Synth};
+use std::{fs::File, io::BufWriter, process::ExitCode};
+use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -26,7 +24,7 @@ pub enum Error {
     Sonant(#[from] SonantError),
 
     #[error("I/O error")]
-    IO(#[from] io::Error),
+    Io(#[from] std::io::Error),
 
     #[error("Wave writer error")]
     Writer(#[from] WriteError),
@@ -53,9 +51,7 @@ fn writer() -> Result<(), Error> {
     let wav_filename = args.next().ok_or(Error::MissingWavFilename)?;
 
     // Read the snt file
-    let mut file = File::open(snt_filename)?;
-    let mut data = Vec::new();
-    file.read_to_end(&mut data)?;
+    let data = std::fs::read(snt_filename)?;
 
     // Create a seed for the PRNG
     let mut seed = [0_u8; 16];
@@ -67,16 +63,14 @@ fn writer() -> Result<(), Error> {
 
     // Load a sonant song and create a synth
     let song = Song::from_slice(&data)?;
-    let synth = Synth::new(&song, seed, 44100.0)
-        .flat_map(ArrayVec::from)
-        .peekable();
+    let synth = Synth::new(&song, seed, 44100.0);
 
     // Write the wav file
     let file = File::create(wav_filename)?;
     let writer = BufWriter::new(file);
     let mut wave_writer = WaveWriter::new(2, 44100, 16, writer)?;
 
-    for sample in synth {
+    for sample in synth.flat_map(ArrayVec::from) {
         let sample = (sample * f32::from(i16::MAX)).round() as i16;
         wave_writer.write_sample_i16(sample)?;
     }
