@@ -2,13 +2,13 @@
 name = "sonant"
 description = "A Rust port of the Sonant 4K synth with streaming support."
 repository = "https://github.com/parasyte/sonant-rs"
-version = "0.1.1"
+version = "0.2.0"
 authors = ["Jay Oster <jay@kodewerx.org>"]
 readme = "README.md"
 license = "MIT"
 categories = ["embedded", "game-engines", "multimedia", "no-std"]
 keywords = ["audio", "no_std", "sound", "synth", "synthesizer"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 arrayvec = { version = "0.7", default-features = false }
